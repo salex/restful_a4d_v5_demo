@@ -11,8 +11,6 @@
 		<li><a href="<%=fusebox.makeURL("about.css")%>">CSS Usage</a></li>		
 		<li><a href="<%=fusebox.makeURL("about.how")%>">How it Works</a></li>
 		<li><a href="<%=fusebox.makeURL("about.source")%>">Library Source</a></li>
-		<li><a href="<%=fusebox.makeURL("about.screencast")%>">Screen Cast</a></li>
 		<li><a href="http://mailhide.recaptcha.net/d?k=01ERFzbszgcrPf2TL3Po3juw==&amp;c=nI1YhKgyi8f9xKIhf0GHrg==" onclick="window.open('http://mailhide.recaptcha.net/d?k=01ERFzbszgcrPf2TL3Po3juw==&amp;c=nI1YhKgyi8f9xKIhf0GHrg==', '', 'toolbar=0,scrollbars=0,location=0,statusbar=0,menubar=0,resizable=0,width=500,height=300'); return false;" title="Reveal this e-mail address">[eMail Contact]</a>
-		<li><a  href="/about/RestA4D_Demo_2004.zip">Download</a></li>
 	</ul>
 </div>
