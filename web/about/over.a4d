@@ -1,0 +1,87 @@
+<h1>Restful Active4D</h1>
+<%include("dlist.a4d")%>
+
+<div id="content-right" class="col-25 dpara"  >
+
+<h1>Overview</h1> <p> Restful Active4D is nothing more than a set of libraries and re-write rules in the "On Request" method of
+Active4d.a4l that allows you to use Active4D using the Rest approach. Fusebox still controls layout and flow of control. These
+libraries call rowSet, batch and a few other Active4D libraries. Depending on your knowledge of CRUD, REST, Ruby on Rails (RoR),
+Fusebox, etc., you may just want to look at the demo circuits and go to the "How it works" link, or scan through some of the
+background information.</p>
+
+<p>At this point, this is not exhaustive documentation, just some explanations on why and how.</p>
+
+<h1 class="dlist"><a href="/about/ra4d">Restful Active4D</a></h1>
+<p>This section is just a little background on why I did this and why I am sharing it.<p>
+
+<p>I consider this beta version 0.5 or so. I&rsquo;ve played with this on and off for a few years and decided to give it another try.
+This very well may be a waste of time in this community, but since I&rsquo;m bouncing between Active4D and RoR, I wanted to use the
+same approach on any new stuff. I may never develop another Active4D application, but if I do, this approach is an option.</p>
+
+<p>Comments and feedback are welcome. Those comments, along with my own plans, will decide if I&rsquo;ll do any more work on this concept.
+
+<h1 class="dlist"><a href="/about/rest">REST and CRUD</a></h1>
+<p>This section contains a short explanation of REST and CRUD, with some links to more detailed information.<p>
+
+<h1 class="dlist"><a href="/about/route">Routing</a></h1>
+<p>This section touches on RoR routing and how resources are mapped to a Restful approach. Resources are managed by controllers and
+routing limits what actions can be taken on the resource.<p>
+
+<h1 class="dlist"><a href="/about/rela">Relations</a></h1> 
+
+<p>This section covers how 4D relations are mapped to standard SQL relations: has_many,
+has_one, belongs_to, has_many_as, has_one_as, and has_many_through. This mapping allows an ActiveRecord like implementation of
+finders. ActiveRecord is a RoR class that controls access to a SQL database. In most cases, it hides the SQL. It, along with an
+adapter, allows RoR to access a large number of SQL databases without changing your code. In Restful Active4D, it hides the query
+statements - if you wish to use the finders.<p> 
+
+<h1 class="dlist"><a href="/about/models">rest.models.json</a></h1> 
+
+<p>The 4D structure defines relationships between tables, controls automatic relations, etc. Active4D uses the structure, but it is
+up to the user to implement those relationships for a web application.</p> 
+
+<p>Just as map.resourses and the model describe the database structure in RoR, I needed something to do the same in Restful Active4D.
+The confuration file <i>"rest.models.json"</i> is a json structure that does that. That file is parsed into a collection "$rest". $rest is used by many of the rest
+routines. In the simplest form, it only relates the model name (singular) to the controller name (plural) and then defines the table
+name used and the unique id field. All other fields are only needed if you are going to use nested models. To use nested routing,
+you must describe those relationships.</p>
+
+<p>This section describes how <i>rest.models.json</i> is built and how it is used.</p>
+
+<h1 class="dlist"><a href="/about/rgen">Scaffold Generation</a></h1> 
+
+<p>The Active4D demo has been recreated in a Restful approach using a scaffold generation circuit Rgen. Rgen uses the database
+description in <i>rest.models.json</i> to allow you to generate the Model, Views, and Controller for a model - including nested relations - if desired.<p>
+
+<p>A scaffold circuit is a complete working circuit, but you may want to tune it after it is generated. I think in RoR they define a
+scaffold as something you can build from, not necessarily the final product.<p>
+
+<p>My thoughts on this area is that no one will take a look at Restful Active4D unless there is some easy way to see if it fits into
+your toolbox.</p>
+
+<h1 class="dlist"><a href="/about/css">CSS Usage</a></h1> 
+
+<p>CSS is another one of those love/hate relationships. I tried to keep the CSS as simple as possible, but stuff always creeps in.
+This section just demos the main selectors used to generate the scaffold circuits. Unfortunately the demo CSS and the scaffold CSS is
+mixed together at this point.</p>
+
+
+<h1 class="dlist"><a href="/about/how">How it works</a></h1> 
+
+<p>A terse description of the flow of control and what the different parts do.</p>
+
+<h1 class="dlist"><a href="/about/lib">Library sources code</a></h1> 
+
+<p>Just textareas with the code dumped into them. There is also a download link for a zipped version of the structure as of the time of 
+the screen cast.</p>
+
+<h1 class="dlist"><a href="/about/screencast">Screen Cast</a></h1> 
+
+<p>If you can get through my <a href="http://www.pittsburghese.com/">Pittsburghese</a>, a short screen cast of generating the Restful
+Active4D demo.</p>
+<p>I forgot to mention in the screen cast that we generated a circut with a controller "adm_vendors". That was to point out that, just
+as in fusebox, you can define more that one circuit that works off of a main table. Why would you do that. Maybe you
+have an employees table that contains public info that is shared among employees and private data only used by HR/management. Rather
+then putting authorization rules all over the place, just create two circuts, one with limited privledges and the other
+with cud priledges. Anyhow a link to this hidden circuit: <a href="<%=rest.controller_path("adm_vendors")%>">adm_vendors</a></p>
+</div>

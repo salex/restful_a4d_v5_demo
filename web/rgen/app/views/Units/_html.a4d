@@ -1,0 +1,56 @@
+
+<%
+// Make the base query string for the edit links
+$baseQuery := a4d.web.collectionItemsToQuery($attributes; "ftr;ftr_name;pbst")
+
+%>
+<div class="box dform">
+	<form name="form"  action="<%=$form_action%>" method="post" onsubmit="return submitForm();">
+		<fieldset>
+			<legend>Unit Information <%=choose($attributes{"id"} = "new";' - Adding Unit';"")%></legend>
+		
+				<div>
+					
+						<label>Name</label>
+						<%=html.text_field_tag("unit.name";$unit{"unit.name"})  %>
+						
+					<br />
+				</div>
+		
+				<div>
+					
+						<label>Timestamp</label>
+						<%=html.text_field_tag("unit.timestamp";$unit{"unit.timestamp"})  %>
+						
+					<br />
+				</div>
+		
+			<div>
+				<%=html.hidden_field_tag("Unit_id";$attributes{"id"})%>
+
+				<% if(defined($valid_parent))
+					write($valid_parent)
+				end if %>
+				
+				<%if($submitAction = "update")%>
+					<%=html.hidden_field_tag("_method";"put")%>
+				<%end if%>
+				<% =html.hidden_field_tag("_referer";_request{"_referer"})%>
+			
+			</div>
+			
+			<div class="dactions">
+				<input name="b_save" type="submit" value="<%=$submitAction%>" />
+				<b>Cancel [</b>
+				<%if($attributes{"id"} # "new") %>
+					
+					<a class="dlink-button"  href="<%=rest.controller_path("Units";$Unit{"Unit.id"};$baseQuery) %>">Show</a>
+					
+				<%end if %>
+				<a class="dlink-button"  href="<%=rest.controller_path("Units";-1;$baseQuery) %>">Return to Units</a>
+				
+				<b>]</b>
+			</div>
+		</fieldset>
+	</form>
+</div>

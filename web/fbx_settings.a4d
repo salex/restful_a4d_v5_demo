@@ -1,0 +1,34 @@
+<% /*
+<fusedoc fuse="fbx_settings.a4d" language="Active4D" specification="2.0">
+	<responsibilities>
+		I set up the enviroment settings for this circuit. If this settings file is being inherited, then you can set a variable outright to override a value set in a parent circuit or use if(undefined(...)) to accept a value set by a parent circuit.
+	</responsibilities>
+	<io>
+		<out>
+			<string name="$XFA_home" comments="The home page" />
+			<string name="$XFA_root" comments="The path portion of the root URL" />
+		</out>
+	</io>
+</fusedoc>
+*/
+
+// Should fusebox suppress its own error messages? Default is false.
+// $fusebox{"suppressErrors"} := true
+
+if ($fusebox{"isHomeCircuit"})
+	// In case no fuseaction was given, set the one to use by default.
+	if (not(collection has($attributes; fusebox.conf.fuseaction)))
+		$attributes{fusebox.conf.fuseaction} := "checker.main"
+	end if
+else
+
+end if
+$circuit := $fusebox{"circuit"}
+	
+$XFA_home := "root.main"
+$XFA_root := join paths("/"; $fusebox{"currentPath"})
+fusebox.head.addJS($fusebox; "/js/rest.js")
+fusebox.head.addJS($fusebox; "/js/prototype.js")
+
+fusebox.head.setTitle("Restful Active4D Demo")
+%>

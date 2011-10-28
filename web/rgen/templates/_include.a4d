@@ -1,0 +1,45 @@
+<_esc_
+$row := $<%=$ocontroller%>->getRow
+$alt := true
+_esc_>
+
+<%	$th := "\n"
+	$td := "\n"
+	for ($i; 1; size of array($attributes{$omodel+"_index"}))
+		$fld := $attributes{$omodel+"_index"}{$i}
+		$label := capitalize(replace string($fld;"_";" "))
+		$th += '\t\t\t<td>$label</td>\n'
+		$td += "\t\t\t\t<td><_esc_=$row{\""+$omodel+"."+$fld+"\"}_esc_></td>\n"
+	end for%>
+
+<table cellspacing="0">
+	<tr class="column-heads">
+		<%=$th%>
+		<td>Actions
+		<%if($attributes{"inc_add"})%>
+		<a class="dlink-button" href="javascript:document.location='<_esc_=new_controller_path("<%=$controller%>/<%=$ocontroller%>";num($attributes{"id"}))_esc_>'" onclick="" >Add <%=$omodel%></a>
+		<%end if %>
+		</td>
+	</tr>
+
+<_esc_
+	while ($<%=$ocontroller%>->next)
+		$alt := not($alt)
+		$rowClass := choose($alt; "alt"; "")
+		_esc_>
+		<tr class="<_esc_$rowClass_esc_>">
+			<%=$td%>
+			<td>
+				<%if($attributes{"inc_show"})%>
+				<a class="dlink-button" href="<_esc_=rest.controller_path("<%=$ocontroller%>";$row{"<%=$omodel%>.id"})_esc_>">Show</a>
+				<%end if %>
+				<%if($attributes{"inc_edit"})%>
+				<a class="dlink-button" href="<_esc_=rest.edit_controller_path("<%=$ocontroller%>";$row{"<%=$omodel%>.id"})_esc_>">Edit</a>
+				<%end if %>
+				<%if($attributes{"inc_delete"})%>
+				<_esc_=delete_link("<%=$ocontroller%>";$row{"<%=$omodel%>.id"}) _esc_>
+				<%end if %>
+			</td>
+		</tr>
+	<_esc_end while_esc_>
+</table>

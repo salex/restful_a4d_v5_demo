@@ -1,0 +1,47 @@
+/*
+	app css
+*/
+
+#batches {
+	margin:		1em 0;
+}
+
+#batches .batch-prev {
+	margin-right:	1.5em;
+}
+
+#batches .batch-next {
+	margin-left:	1.5em;
+}
+
+#batches a {
+	margin:	0 .25em;
+}
+
+#batches a {
+  background: #e6eff3;
+  color: #069;
+  text-decoration: none;
+  padding: 2px 6px 3px 6px;
+  border: 1px solid #c3edfb;
+}
+
+#batches a:hover {
+  border-color: #B7D7E1;
+}
+
+
+#list-search {
+	margin: 	0 0 1em 0;
+	background:	#e0eaef;
+	border:		1px solid #dae3e9;
+}
+
+#list-search td {
+	padding:	.75em;
+}
+
+
+#add-button {
+	margin: 2em 0 1em 0;
+}

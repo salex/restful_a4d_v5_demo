@@ -1,0 +1,3 @@
+<%
+ fusebox.head.addJS($fusebox; "/js/prototype.js;/js/rest.js")
+%>

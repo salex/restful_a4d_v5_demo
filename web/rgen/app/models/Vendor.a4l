@@ -1,0 +1,159 @@
+
+library "Vendor"
+
+method "cudVendor"($cudAction; $cudPhase; $cudTable; $cudResult; $params; $cudTimestampField; $cudTimestamp)
+	case of 
+		:($cudPhase = "query")
+			unload record([vendors])
+			if ($cudAction # "create")
+					query([vendors]; [vendors]id = num($params{"Vendor.id"}))
+			end if
+		:($cudPhase = "update") 
+			rest.buildFromParams("vendors";$params)
+		:($cudPhase = "post") 
+			_request{"new_id"} := [vendors]id
+		:($cudPhase = "delete") 
+		:($cudPhase = "cleanup") 
+	end case
+	return ("success") 
+end method 
+
+method "create"($attributes)
+	start transaction
+	$cudAction := "create"
+	$params := a4d.utils.filtercollection($attributes;"Vendor.@")
+	$result := a4d.utils.cud($cudAction; ->[vendors]; "cudVendor"; $params)
+	if ($result # "success")
+		cancel transaction
+		return($result)
+	end if
+	
+	$params := a4d.utils.filtercollection($attributes;"address.@")
+	$params{"Vendor.addressable_type"} := "Vendor"
+	$params{"Vendor.addressable_id"} := _request{"new_id"}
+	$result := a4d.utils.cud($cudAction; ->[addresses]; "address.cudaddress"; $params)
+	if ($result # "success")
+		cancel transaction
+		return("Failed on address: "+$result)
+	end if
+	
+	validate transaction
+	return($result)
+end method
+
+method "update"($attributes)
+	start transaction
+	$cudAction := "update"
+	$params := a4d.utils.filtercollection($attributes;"Vendor.@")
+	$params{"Vendor.id"} := $attributes{"id"} // id is in rest path
+	$result := a4d.utils.cud($cudAction; ->[vendors]; "cudVendor"; $params)
+	if ($result # "success")
+		cancel transaction
+		return($result)
+	end if
+	
+	$params := a4d.utils.filtercollection($attributes;"address.@")
+
+	$params{"address.id"} := num($attributes{"address_id"})
+	if ($params{"address.id"} = 0)
+		$params{"address.addressable_type"} := "Vendor"
+		$params{"address.addressable_id"} := num($attributes{"id"})
+		$result := a4d.utils.cud("update*"; ->[addresses]; "address.cudaddress"; $params)
+	else
+		$result := a4d.utils.cud($cudAction; ->[addresses]; "address.cudaddress"; $params)
+
+	end if
+
+	if ($result # "success")
+		return("Failed on address: "+$result)
+	end if
+
+	validate transaction
+	return($result)
+	
+end method
+
+method "delete"($attributes)
+	start transaction
+	$params := a4d.utils.filtercollection($attributes;"Vendor.@")
+	$cudAction := "delete"
+	$params{"Vendor.id"} := $attributes{"id"} // id is in rest path
+	$result := a4d.utils.cud($cudAction; ->[vendors]; "cudVendor"; $params)
+	if ($result # "success")
+		cancel transaction
+		return("Failed in Vendor: "$result)
+	end if
+	
+	
+		$params := Vendor.find_related("address";$attributes)
+
+	$result := a4d.utils.cud($cudAction; ->[addresses]; "address.cudaddress"; $params)
+	if ($result # "success")
+	    return("Failed on address: "+$result)
+	end if
+
+	query([ingredients]; [ingredients]vendor_id = num($attributes{"id"}))
+	selection to array([ingredients]id;$iids)
+	for each ($iids; $value; $index)
+		$params{"ingredient.id"} := $value
+		$result := a4d.utils.cud($cudAction; ->[ingredients]; "ingredient.cudingredient"; $params)
+	    if ($result # "success")
+			cancel transaction
+	        return("Failed to delete ingredient: "+$result)
+	    end if
+	end for each
+	
+	
+	validate transaction
+	return($result)
+end method
+
+method "find_all"($attributes)
+	
+	all records([vendors])
+	
+	$callback := """
+	
+	"""
+	$include_map := ""
+	if ($attributes{"ftr"})
+		_filter($attributes)
+	end if
+	if ($attributes{"bst"})
+		$attributes{"pbst"} := $attributes{"bst"}
+	else
+		if ($attributes{"pbst"})
+			$attributes{"bst"} := $attributes{"pbst"}
+		end if
+	end if
+	order by([vendors];[vendors]name;>)
+	return(rest.build_rowset("Vendor";$attributes;new collection("include_map";$include_map;"callback" ;$callback)))
+end method
+
+method "find"($attributes)
+	return(rest.find("Vendor";$attributes{"id"}))
+end method
+
+method "find_related"($relModel;$attributes;$parent=0)
+	return(rest.find_related("Vendor";$relModel;$attributes;$parent))
+end method
+
+method "new"($attributes)
+	return(rest.new("Vendor"))
+end method
+
+method "_filter"($attributes)
+		
+	if ($attributes{"ftr_name"}) 
+		query selection([Vendors]; [Vendors]name = $attributes{"ftr_name"}) 
+	end if
+			
+	if ($attributes{"ftr_contact"}) 
+		query selection([Vendors]; [Vendors]contact = $attributes{"ftr_contact"}) 
+	end if
+			
+	
+end method
+
+end library
+

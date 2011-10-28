@@ -1,0 +1,69 @@
+<% /*
+<fusedoc fuse="dsp_hello.a4d" language="Active4D" specification="2.0">
+	<responsibilities>
+		I greet the user when he/she first visits the site.
+	</responsibilities>
+</fusedoc>
+*/ 
+
+fusebox.head.setTitle(fusebox.head.getTitle + " - Welcome")
+
+%>
+<h1>Routing</h1>
+<%include("dlist.a4d")%>
+
+<div id="content-right" class="col-25 dpara"  >
+
+<h1>Map Resources</h1>
+
+<p>In RoR, there is a configuration file called routes.rb that define valid routes. I did not implement all of this, but just to show you how it works:</p>
+
+<pre class="ident">map.resources :offices</pre>
+<p>Would define crud actions and routes for the resource offices:</p>
+
+<pre style="font-size:.8em">
+offices		GET		/offices(.:format)						{:action=>"index", :controller=>"offices"}
+			POST	/offices(.:format)						{:action=>"create", :controller=>"offices"}
+new_office	GET		/offices/new(.:format)					{:action=>"new", :controller=>"offices"}
+edit_office	GET		/offices/:id/edit(.:format)					{:action=>"edit", :controller=>"offices"}
+office 		GET		/offices/:id(.:format)						{:action=>"show", :controller=>"offices"}
+			PUT		/offices/:id(.:format)						{:action=>"update", :controller=>"offices"}
+			DELETE	/offices/:id(.:format)						{:action=>"destroy", :controller=>"offices"}
+
+</pre>
+
+<p>There are a lot of options to map.resources - that is just another way of saying that routing can be confusing. In the simple
+form above: The first column, before the HTTP method, defines a helper method that will generate the url. The second column is the
+HTTP method. The third column is the format of the url. The last column defines the action and controller.</p>
+
+<p>Then if you really want to be confused, add nested routes. If I wanted to, I could describe the deeply nested route using map
+resources and end up with something like:
+
+<br /><br />
+	<code>&nbsp;&nbsp;/companies/33/customers/23/projects/65432/jobs/391/stages/1400/edit </code>
+<br /><br />
+
+Fortunately they added "Shallow Routing".</p>
+
+<h1>Shallow Routing</h1>
+
+<p>Shallow routing only defines the routes you really need. Nesting never goes more than two deep and you only need that depth in
+one condition, creating a new child record for a parent. In that case you have a path something like
+/companies/453/projects/new</p>
+
+<h1>URLs and Paths</h1>
+
+<p>The combination of Rest and the predetermined routing is what allows us to create rewrite rules in the "On Request" method and
+generate URLs or paths with helper methods. RoR actually generates helper methods for each valid path. Restful Active4D does not go
+that far and provides four helper methods:</p>
+
+<textarea class="indent code" rows="5" cols="60">
+	method "controller_path"($path;$id=-1;$query="")
+	method "new_controller_path"($path;$id=-1;$query="")
+	method "edit_controller_path"($path;$id=-1;$query="")
+	method "action_controller_path"($path;$id=-1;$query="")
+</textarea>
+
+<p>We only have a few more building block, <a href="/about/relate">"Relations"</a>.</p>
+
+</div>

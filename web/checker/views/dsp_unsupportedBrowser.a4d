@@ -1,0 +1,27 @@
+<% /*
+<fusedoc fuse="dsp_unsupportedBrowser.a4d" language="Active4D" specification="2.0">
+	<responsibilities>
+		I tell the user that their browser is bogus.
+	</responsibilities>
+</fusedoc>
+*/ %>
+<div id="content">
+  <div id="checker">
+  
+    <h1>Unsupported browser</h1>
+	
+    <p>We are sorry, but the browser you are using is currently not supported because it does not adequately support modern web standards used by this site. The following browsers are certified for use with this site:</p>
+	
+    <ul>
+      <li>Safari 3.0+(Mac)</li>
+      <li>Camino 1.6+(Mac)</li>
+      <li>Firefox 3.0+ (Mac/Windows)</li>
+      <li>OmniWeb 5.7+ (Mac)</li>
+      <li>Konqueror 3+ (Linux)</li>
+      <li>Internet Explorer 6+ (Windows)</li>
+    </ul>
+	
+    <p>Please try again with one of the browsers listed above.</p>
+	
+  </div>
+</div>

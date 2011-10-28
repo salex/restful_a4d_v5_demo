@@ -1,0 +1,24 @@
+<% /*
+<fusedoc fuse="dsp_errorHandling.a4d" language="Active4D" specification="2.0">
+	<responsibilities>
+		I am a custom error handling page.
+	</responsibilities>
+</fusedoc>
+*/ 
+
+fusebox.head.setTitle(fusebox.head.getTitle + "- Execution Error")
+%>
+
+<div id="content">
+
+  <h1>Oops...</h1>
+  
+  <p>We're sorry, but an error has occurred. The items in the list below that begin with
+  &quot;a4d_&quot; are error variables received from Active4D.</p>
+  
+  <%
+  	a4d.debug.dump session
+	fusebox.postHandleError  // this cleans up the session variables created by fusebox.handleError()
+  %>
+  
+</div>

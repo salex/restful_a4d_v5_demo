@@ -1,0 +1,150 @@
+<h1>Source Code</h1>
+<%include("dlist.a4d")%>
+
+<div id="content-right" class="col-25 dpara"  >
+
+<p>The following textareas display some of the source code used in Restful Active4d</p>
+<p>If you would like a copy of the Demo Structure, you can get download a zipped version (9.2mb) by clicking on
+the download link.</p>
+<p><a class="dlink-button" href="/about/RestA4D_Demo_2004.zip">Download</a></p>
+<h1>Active4D.a4l On Request</h1>
+<textarea class="code" rows="20" cols="100">
+method "On Request"($inURL)  `--> Text or <none>
+
+	// The URL is in the form /<circuit>/[<action>][?<query>].
+	// If there is a dot in the filename, assume it is a non-executable resource,
+	// and return the url as is.
+	$circuit := directory of($inURL; *)
+	$action  := filename of ($inURL)
+	_request{"_rurl"} := $inURL
+	_request{"_referer"} := ""
+	if ("." ~ $action)
+		return
+	end if
+	$tmpID := num($action)
+	$isID := string($tmpID) = $action // only id if pure number and not some action with number (ie fix01)
+	$cnt := split string($inurl;"/";$chunks)
+	$method := get request info("*request method")
+	$isNew := $action = "new"
+	$isEdit := $action = "edit"
+	$isMap :=  $action[[1]] = "_"
+
+	case of
+		:($cnt = 0)
+			return ("/index.a4d")
+		:($cnt = 1) // controller only index. Can only be index(get) or create(post)
+			$cir := $chunks{1}
+			_request{"_referer"} := $inURL
+			case of
+				:($method = "post")
+					$act := "create"
+				:($method = "get")
+					$act := "index"
+				else
+					$act := "error"
+			end case
+		:($cnt = 2) // Can only be new(get), show(get) or update(put) or a fuseaction
+			$cir := $chunks{1}
+			$tmp := $chunks{2}
+			if ($isID | $isNew)
+				$id := $tmp
+				case of
+					:($isNew)
+						$act := "new"
+						$id := "new"
+						_request{"_referer"} := '/$chunks{1}'
+						
+					:($method = "get")
+						$act := "show"
+						_request{"_referer"} := $inURL
+					else
+						$act := "_method"
+						_request{"_referer"} := $inURL
+				end case
+			else
+				$act := $tmp  //_action or fuseaction
+			end if
+		:($cnt = 3) // Can only be edit or map or a get with a parent id
+			$cir := $chunks{1}
+			_request{"_referer"} := '/$chunks{1}/$chunks{2}'
+			if ($isEdit | $isMap)
+				$id := $chunks{2}
+				$act := $chunks{3}
+			else
+				$act := "error"
+			end if
+		:($cnt = 4)  // can only be new with parent id or map action on controller
+			$parent1 := $chunks{1}
+			$parent1_id := $chunks{2}
+			$cir := $chunks{3}
+			_request{"_referer"} := '/$chunks{1}/$chunks{2}'
+			case of
+				:($method = "get")
+					if ($isNew)
+						$act := "new"
+						$id := "new"
+					else
+						if($isMap)
+							$act := $chunks{4}
+						else
+							$act := "error"
+						end if
+					end if
+				else
+					$cir := $chunks{1}
+					$act := "error"
+			end case
+		:($cnt = 5)  // no known route
+		:(($cnt = 6)) //many to many new
+			$cir := $chunks{5}
+			_request{"_referer"} := '/$chunks{1}/$chunks{2}'
+			$id := "new"
+			$parent1 := $chunks{1}
+			$parent1_id := $chunks{2}
+			$parent2 := $chunks{3}
+			$parent2_id := $chunks{4}
+			$act := "new"
+	end case
+
+	_query{fusebox.conf.fuseaction} := '$cir.$act'
+	if (defined($id))
+		_query{"id"} := $id	
+	end if
+	if (defined($parent1_id))
+		_query{$parent1+"_id"} := $parent1_id
+		_query{"parent1"} := $parent1 	
+	end if
+	if (defined($parent2_id))
+		_query{$parent2+"_id"} := $parent2_id	
+		_query{"parent2"} := $parent2 	
+	end if
+	return ("/index.a4d")
+
+end method
+
+</textarea>
+<h1>rest.a4l</h1>
+<% include into("/rest/rest.a4l";$resta4l)%>
+<textarea class="code" rows="20" cols="100">
+<%=$resta4l%>
+</textarea>
+
+<h1>rest.utils.a4l</h1>
+<% include into("/rest/rest.utils.a4l";$resta4l)%>
+<textarea class="code" rows="20" cols="100">
+<%=$resta4l%>
+</textarea>
+
+<h1>form.a4l</h1>
+<% include into("/rest/form.a4l";$resta4l)%>
+<%$resta4l := replace string($resta4l;"textarea"; "text area")%>
+<textarea class="code" rows="20" cols="100">
+<%=$resta4l%>
+</textarea>
+
+<h1>Typical Model</h1>
+<% include into("/app/models/vendor.a4l";$resta4l)%>
+<textarea class="code" rows="20" cols="100">
+<%=$resta4l%>
+</textarea>
+</div>

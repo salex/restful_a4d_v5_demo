@@ -1,0 +1,175 @@
+/*
+	Active4D event handler library. The main Active4D library delegates to this library.
+	
+	Copyright (c) 2001-2009 Aparajita Fishman, All Rights Reserved
+*/
+
+library "_active4d"
+
+
+method "onRequest"($inURL)  `--> Text or <none>
+
+	// The URL is in the form /<circuit>/[<action>][?<query>].
+	// If there is a dot in the filename, assume it is a non-executable resource,
+	// and return the url as is.
+	$circuit := directory of($inURL; *)
+	$action  := filename of ($inURL)
+	_request{"_rurl"} := $inURL
+	_request{"_referer"} := ""
+
+	if ("." ~ $action)
+		return($inURL)
+	end if
+	$tmpID := num($action)
+	$isID := string($tmpID) = $action // only id if pure number and not some action with number (ie fix01)
+	$cnt := split string($inurl;"/";$chunks)
+	$method := get request info("*request method")
+	$isNew := $action = "new"
+	$isEdit := $action = "edit"
+	$isMap :=  $action[[1]] = "_"
+
+	case of
+		:($cnt = 0)
+			return ("/index.a4d")
+		:($cnt = 1) // controller only index. Can only be index(get) or create(post)
+			$cir := $chunks{1}
+			_request{"_referer"} := $inURL
+			case of
+				:($method = "post")
+					$act := "create"
+				:($method = "get")
+					$act := "index"
+				else
+					$act := "error"
+			end case
+		:($cnt = 2) // Can only be new(get), show(get) or update(put) or a fuseaction
+			$cir := $chunks{1}
+			$tmp := $chunks{2}
+			if ($isID | $isNew)
+				$id := $tmp
+				case of
+					:($isNew)
+						$act := "new"
+						$id := "new"
+						_request{"_referer"} := '/$chunks{1}'
+						
+					:($method = "get")
+						$act := "show"
+						_request{"_referer"} := $inURL
+					else
+						$act := "_method"
+						_request{"_referer"} := $inURL
+				end case
+			else
+				$act := $tmp  //_action or fuseaction
+			end if
+		:($cnt = 3) // Can only be edit or map or a get with a parent id
+			$cir := $chunks{1}
+			_request{"_referer"} := '/$chunks{1}/$chunks{2}'
+			if ($isEdit | $isMap)
+				$id := $chunks{2}
+				$act := $chunks{3}
+			else
+				$act := "error"
+			end if
+		:($cnt = 4)  // can only be new with parent id or map action on controller
+			$parent1 := $chunks{1}
+			$parent1_id := $chunks{2}
+			$cir := $chunks{3}
+			_request{"_referer"} := '/$chunks{1}/$chunks{2}'
+			case of
+				:($method = "get")
+					if ($isNew)
+						$act := "new"
+						$id := "new"
+					else
+						if($isMap)
+							$act := $chunks{4}
+						else
+							$act := "error"
+						end if
+					end if
+				else
+					$cir := $chunks{1}
+					$act := "error"
+			end case
+		:($cnt = 5)  // no known route
+		:(($cnt = 6)) //many to many new
+			$cir := $chunks{5}
+			_request{"_referer"} := '/$chunks{1}/$chunks{2}'
+			$id := "new"
+			$parent1 := $chunks{1}
+			$parent1_id := $chunks{2}
+			$parent2 := $chunks{3}
+			$parent2_id := $chunks{4}
+			$act := "new"
+	end case
+
+	_query{fusebox.conf.fuseaction} := '$cir.$act'
+	if (defined($id))
+		_query{"id"} := $id	
+	end if
+	if (defined($parent1_id))
+		_query{$parent1+"_id"} := $parent1_id
+		_query{"parent1"} := $parent1 	
+	end if
+	if (defined($parent2_id))
+		_query{$parent2+"_id"} := $parent2_id	
+		_query{"parent2"} := $parent2 	
+	end if
+	return ("/index.a4d")
+
+end method
+
+
+method "onRequestDemo"($inURL)
+	
+	// The URL is in the form /<circuit>/[<action>][?<query>].
+	// If there is a dot in the filename, assume it is a non-executable resource,
+	// and return the url as is.
+	
+	$circuit := directory of($inURL; *)
+	$action  := filename of ($inURL)
+	
+	if ("." !~ $action)
+		// If the url has only a circuit name with no trailing slash,
+		// $circuit will be empty and $action has the circuit name.
+		// In that case call the main action on the circuit.
+		
+		if (length($circuit) = 0)
+			if (length($action) > 0)
+				$circuit := $action
+				$action := "main"
+			end if
+		else
+			$circuit := substring($circuit; 2)
+			
+			if (length($action) = 0)
+				$action := "main"
+			end if
+		end if
+				
+		if (length($circuit) > 0)
+			_query{fusebox.conf.fuseaction} := '$circuit.$action'
+		end if
+		
+		return ("/index.a4d")		
+	end if
+	
+	return ($inURL)
+	
+end method
+
+
+method "onAuthenticate"
+
+	if (current realm = "realm_test")
+		if ((auth user # "foo") | not(identical strings(auth password; "bar")))
+			authenticate
+			include("/controllers/authentication_failed.a4d")
+		end if
+	end if
+
+end method
+
+end library

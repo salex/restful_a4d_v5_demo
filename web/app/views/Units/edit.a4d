@@ -1,0 +1,6 @@
+<h3>Edit Unit</h3>
+<%
+	$submitAction := "Update"
+	$form_action := rest.controller_path("Units";num($attributes{"id"})) 
+	include("_form.a4d")
+%>

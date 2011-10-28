@@ -1,0 +1,373 @@
+<h1>Generated Files</h1>
+<br />
+<%
+	writebr(rest.button_link("rgen";"rgen/main"))
+	
+    /*The below methods, if called will return text to be replaced in a special tag or write*/
+
+	method "other_one"($model;$other_one_model)
+		/* used to create a call to a find related one record*/
+    	$line := "\n\t\t$other_one := model.find_related(\"other_one\";$attributes;$model)\n"
+        $result := replace string($line;"model";$model)
+    	return(replace string($result;"other_one";$other_one_model))
+    end method
+
+    method "other_many"($model;$omodel;$attributes)
+		/* used to create an action to get a set of related many records*/
+		global($rest)
+		$controller := $rest{"models"}{$model}{"controller"}
+   		$ocontroller := $rest{"models"}{$omodel}{"controller"}
+     	$line := """\n\t:($action = \"_other_many_controller\")
+                    $other_many_controller := model.find_related(\"other_many_model\";$attributes)
+                    include(\"../views/controller/_other_many_controller.a4d\")\n"""
+        $result := replace string($line;"other_many_controller";$ocontroller)
+        $result := replace string($result;"other_many_model";$omodel)
+        $result := replace string($result;"controller";$controller)
+        $result := replace string($result;"model";$model)
+
+
+		return($result)
+	end method
+
+	method "update_one"($model;$omodel)
+		/* used to create update a related one record*/
+		
+		global($rest)
+		$controller := $rest{"models"}{$model}{"controller"}
+   		$ocontroller := $rest{"models"}{$omodel}{"controller"}
+		$fkey := $rest{"models"}{$omodel}{"relations"}{"polymorphic"}{"fkey"}
+		$otable := $rest{"models"}{$omodel}{"table"}
+        $line := """
+	$params := a4d.utils.filtercollection($attributes;"<omodel>.@")
+
+	$params{"<omodel>.id"} := num($attributes{"<omodel>_id"})
+	if ($params{"<omodel>.id"} = 0)
+		$params{"<omodel>.<fkey>_type"} := "<model>"
+		$params{"<omodel>.<fkey>_id"} := num($attributes{"id"})
+		$result := a4d.utils.cud("update*"; ->[<otable>]; "<omodel>.cud<omodel>"; $params)
+	else
+		$result := a4d.utils.cud($cudAction; ->[<otable>]; "<omodel>.cud<omodel>"; $params)
+
+	end if
+
+	if ($result # "success")
+		return("Failed on <omodel>: "+$result)
+	end if\n"""
+        $result := replace string($line;"<otable>";$otable)
+        $result := replace string($result;"<omodel>";$omodel)
+   	    $result := replace string($result;"<fkey>";$fkey)
+	    $result := replace string($result;"<model>";$model)
+        return($result)
+	end method
+	
+	method "create_one_as"($model;$omodel)
+		/* used to create a polymorphic related one record*/
+		
+		global($rest)
+		$controller := $rest{"models"}{$model}{"controller"}
+   		$ocontroller := $rest{"models"}{$omodel}{"controller"}
+		$fkey := $rest{"models"}{$omodel}{"relations"}{"polymorphic"}{"fkey"}
+		$otable := $rest{"models"}{$omodel}{"table"}
+        $line := """
+	$params := a4d.utils.filtercollection($attributes;"<omodel>.@")
+	$params{"<model>.<fkey>_type"} := "<model>"
+	$params{"<model>.<fkey>_id"} := _request{"new_id"}
+	$result := a4d.utils.cud($cudAction; ->[<otable>]; "<omodel>.cud<omodel>"; $params)
+	if ($result # "success")
+		cancel transaction
+		return("Failed on <omodel>: "+$result)
+	end if
+	"""
+		
+        $result := replace string($line;"<otable>";$otable)
+        $result := replace string($result;"<omodel>";$omodel)
+   	    $result := replace string($result;"<fkey>";$fkey)
+	    $result := replace string($result;"<model>";$model)
+     return($result)
+	end method
+	
+	
+    method "delete_as"($model;$omodel)
+		/* used to delete a polymorphic related one record*/
+	
+		global($rest)
+		$controller := $rest{"models"}{$model}{"controller"}
+		$otable := $rest{"models"}{$omodel}{"table"}
+        $line := """
+		$params := <model>.find_related("<omodel>";$attributes)
+
+	$result := a4d.utils.cud($cudAction; ->[<table>]; "<omodel>.cud<omodel>"; $params)
+	if ($result # "success")
+	    return("Failed on <omodel>: "+$result)
+	end if\n"""
+        $result := replace string($line;"<table>";$otable)
+        $result := replace string($result;"<model>";$model)
+        $result := replace string($result;"<omodel>";$omodel)
+        return($result)
+
+    end method
+
+method "returnParent"($model;$omodel)
+	/* used to return related one record model and controller links*/
+	
+	global($rest)
+	$controller := $rest{"models"}{$model}{"controller"}
+	$ocontroller := $rest{"models"}{$omodel}{"controller"}
+	$fkey := $rest{"models"}{$model}{"relations"}{$omodel}{"fkey"}
+	
+	$line := """
+	<_esc_ $rid := $<omodel>{"<omodel>.<fkey>"} _esc_>
+	<a class="dlink-button"  href="<_esc_=rest.controller_path("<controller>";$rid;$baseQuery) _esc_>">Return to <model></a>
+	<a class="dlink-button"  href="<_esc_=rest.controller_path("<controller>";-1;$baseQuery) _esc_>">Return to <controller></a>
+	"""
+    $result := replace string($line;"<model>";capitalize($model))
+    $result := replace string($result;"<controller>";capitalize($controller))
+    $result := replace string($result;"<ocontroller>";capitalize($ocontroller))
+	$result := replace string($result;"_esc_";"%")
+    $result := replace string($result;"<fkey>";$fkey)
+    $result := replace string($result;"<omodel>";$omodel)
+	return($result)
+end method
+
+method "delete_many"($model;$omodel)
+	/* used to delete related many records records*/
+	
+	global($rest)
+	$fkey := $rest{"models"}{$model}{"relations"}{$omodel}{"fkey"}
+	$otable := $rest{"models"}{$omodel}{"table"}
+	if ($rest{"models"}{$omodel}{"relations"}{"polymorphic"})
+		$query := """
+	query([<table>]; [<table>]<fkey>_type = "<model>"; *)
+	query([<table<]; &;[<table>]<fkey>_id = num($attributes{"id"}))
+	"""
+	else
+		$query := """query([<table>]; [<table>]<fkey> = num($attributes{"id"}))"""
+	end if
+	$line := $query+"""
+	selection to array([<table>]id;$iids)
+	for each ($iids; $value; $index)
+		$params{"<omodel>.id"} := $value
+		$result := a4d.utils.cud($cudAction; ->[<table>]; "<omodel>.cud<omodel>"; $params)
+	    if ($result # "success")
+			cancel transaction
+	        return("Failed to delete <omodel>: "+$result)
+	    end if
+	end for each
+	"""
+	$result := replace string($line;"<table>";$otable)
+    $result := replace string($result;"<omodel>";$omodel)
+    $result := replace string($result;"<model>";$model)
+    $result := replace string($result;"<fkey>";$fkey)
+    return($result)
+end method
+    
+    /*setup variables based on attributes from select action*/
+    /*Most replace elements are in a colection inc*/
+
+
+	$model := capitalize($attributes{"model"})
+	$controller := capitalize($rest{"models"}{$model}{"controller"})
+	$table := $rest{"models"}{$model}{"table"}
+	$attr_id := "$attributes{\"id\"}"
+    $hasIncludes := false
+    $hasOne := false
+    $hasMany := false
+	$belongs_to := false
+	$hasMandatory := false
+	/*model_hidden create a hidden tag for the model id that won't conflict with instance id*/
+    
+	$rgen:= new collection("model_hidden";'<_esc_=html.hidden_field_tag("$model'+'_id";$attr_id)_esc_>\n')
+	if ($attributes{"includes"})
+		$rgen{"hasOne"} := new collection
+		$rgen{"hasMany"} := new collection
+		$hasIncludes := true
+		split string($attributes{"includes"};";";$other_models)
+ 		for each ($other_models; $imodel; $index)
+			$rgen{$imodel} := copy collection($rest{"models"}{$model}{"relations"}{$imodel})
+			$inc_relation := $rest{"models"}{$model}{"relations"}{$imodel}{"relation"}
+ 			$inc_fkey := $rest{"models"}{$model}{"relations"}{$imodel}{"fkey"}
+			$inc_mandatory := $rest{"models"}{$model}{"relations"}{$imodel}{"mandatory"}
+			if ("has_many" ~ $inc_relation)
+				$rgen{$imodel}{"rel"} := "hasMany"
+				$rgen{"hasMany"}{$imodel} := $rgen{$imodel}
+    			$rgen{$imodel}{"other_many"} := other_many($model;$imodel;$attributes)
+				if ($rgen{$imodel}{"delete"})
+					$rgen{$imodel}{"delete_many"} := delete_many($model;$imodel)
+				end if
+			    $hasMany := true
+			else
+				$rgen{$imodel}{"rel"} := "hasOne"
+				$rgen{"hasOne"}{$imodel} := $rgen{$imodel}
+				$rgen{$imodel}{"other_one"} := other_one($model;$imodel)
+				$rel_id := $imodel+"_id"
+				$rel_val := "$"+$imodel+"{\""+'$imodel.id'+"\"}"
+				$rgen{$imodel}{"related_id"} := '<_esc_=html.hidden_field_tag("$rel_id";$rel_val)_esc_>\n'
+				if($inc_mandatory)
+					$hasMandatory := true
+				end if
+				if ($inc_relation = "has_one_as")
+					if ($rgen{$imodel}{"delete"})
+						$rgen{$imodel}{"delete_as"} := delete_as($model;$imodel)
+					end if
+					$rgen{$imodel}{"create_one_as"} := create_one_as($model;$imodel)
+				end if
+				if ($inc_relation = "belongs_to")
+					if ($rgen{$imodel}{"mandatory"})
+						$rgen{$imodel}{"returnParent"} := returnParent($imodel;$model)
+					end if
+				end if
+				/*if there are any foreign fields in edit array, build update call*/
+			    
+				$idx := $index := regex find all in array($attributes{"edit"}; '/^$imodel./'; $matches)
+				if ($idx > 0)
+					$rgen{$imodel}{"update_one"} := update_one($model;$imodel)
+					
+				end if
+		        $hasOne := true
+	        end if	
+        end for each
+	end if
+	/*build filter calls*/
+    
+	$filterQuery := ""
+	$filter := ""
+	if ($attributes{"filter"})
+		if (is array(type($attributes{"filter"})))
+			$filter := a4d.lists.arrayToList($attributes{"filter"};";")
+			$filterQuery := "ftr;" + $filter+";"
+		else
+			$filter := $attributes{"filter"}
+			$filterQuery := "ftr;" + $attributes{"filter"}+";"
+		end if
+	end if
+	$rgen{"filterQuery"} := $filterQuery
+	$rgen{"filter"} := $filter
+	$rgen{"hasMandatory"} := $hasMandatory
+	/*hasMandatory befor filters new calls on create that require an parent id*/
+    
+	$path := directory of(directory of(current path;*))
+	c_blob($modelBlob)
+	
+	$bpath := $path+"blobs/"+$model+".blob"
+	$modelBlob := collection to blob($attributes)
+	blob to document($bpath;$modelBlob)
+
+    /*model always generated, if only for CUD*/
+	include into("../templates/_model.a4l";$tmp)
+	$rmodel := replace string($tmp;"<_esc_";"<"+"%")
+	$rmodel := replace string($rmodel;"_esc_>";"%"+">")
+	//$rmodel := replace string($rmodel;"/*<_other_delete_as_>*/";$other_delete_as)
+	writebr('<textarea rows="20" cols="80">MODEL\n$rmodel</textarea>')
+
+	$dpath := $path+"app/models/"+$model+".a4l"
+	$docRef := create document($dpath;"TxMt")
+	send packet($docRef;$rmodel)
+	close document($docRef)
+
+	$t := rest.getTable($model)
+	if ($attributes{"index"})
+		$hasView := directory exists($path+"app/views/"+$controller)
+
+	    if (not($hasView))
+	    	create folder($path+"app/views/"+$controller)
+	    end if
+
+	    /* controller */
+		include into("../templates/_controller.a4d";$tmp)
+		$rcontroller := replace string($tmp;"_esc_";"%")
+		$other_one := ""
+		
+		for each ($rgen{"hasOne"}; $key; $imodel)
+			$other_one += $imodel{"other_one"}
+		end for each
+		$rcontroller := replace string($rcontroller;"/*<_other_one_>*/";$other_one)
+
+		$other_many := ""
+		for each ($rgen{"hasMany"}; $key; $imodel)
+			$other_many += $imodel{"other_many"}
+			$ocontroller := $rest{"models"}{$key}{"controller"}
+			$omodel := $key
+			include into("../templates/_include.a4d";$tmp)
+			$rinclude := replace string($tmp;"_esc_";"%")
+			$path := directory of(directory of(current path;*))
+			$dpath := $path+"app/views/"+$controller+"/_"+$ocontroller+".a4d"
+			$docRef := create document($dpath;"TxMt")
+			send packet($docRef;$rinclude)
+			close document($docRef)	
+		end for each
+
+		$rcontroller := replace string($rcontroller;"/*<_other_many_>*/";$other_many)
+		$dpath := $path+"app/controllers/"+$controller+".a4d"
+		$docRef := create document($dpath;"TxMt")
+		send packet($docRef;$rcontroller)
+		close document($docRef)	
+
+
+	    /* helper */
+
+		include into("../templates/_helper.a4l";$tmp)
+		$rhelper := replace string($tmp;"_esc_";"%")
+
+		$dpath := $path+"app/helpers/"+$controller+".a4l"
+		$docRef := create document($dpath;"TxMt")
+		send packet($docRef;$rhelper)
+		close document($docRef)
+	    /* index */
+	    
+		include into("../templates/_index.a4d";$tmp)
+		$rindex := replace string($tmp;"<_esc_";"<"+"%")
+		$rindex := replace string($rindex;"_esc_>";"%"+">")
+		$dpath := $path+"app/views/"+$controller+"/index.a4d"
+		$docRef := create document($dpath;"TxMt")
+		send packet($docRef;$rindex)
+		close document($docRef)
+
+		writebr('<textarea rows="20" cols="80">Controller - Helper -Index\nCONTOLLER\n$rcontroller\nHELPER\n$rhelper\nINDEX\n$rindex</textarea>')
+	end if
+	
+	if ($attributes{"edit"})
+	
+		include into("../templates/_new.a4d";$tmp)
+		$rnew := replace string($tmp;"_esc_";"%")
+
+		include into("../templates/_edit.a4d";$tmp)
+		$redit := replace string($tmp;"_esc_";"%")
+
+		include into("../templates/_form.a4d";$tmp)
+		$rform := replace string($tmp;"_esc_";"%")
+
+		$dpath := $path+"app/views/"+$controller+"/edit.a4d"
+		$docRef := create document($dpath;"TxMt")
+		send packet($docRef;$redit)
+		close document($docRef)
+
+		$dpath := $path+"app/views/"+$controller+"/new.a4d"
+		$docRef := create document($dpath;"TxMt")
+		send packet($docRef;$rnew)
+		close document($docRef)
+
+		$dpath := $path+"app/views/"+$controller+"/_html.a4d"
+		$docRef := create document($dpath;"TxMt")
+		send packet($docRef;$rform)
+		close document($docRef)
+		writebr('<textarea rows="20" cols="80">Views - New. Edit, Form\nNEW\n$rnew\nEDIT\n$redit\n_FORM\n$rform</textarea>')
+
+	end if
+
+	if ($attributes{"show"})
+		include into("../templates/_show.a4d";$tmp)
+		$rshow := replace string($tmp;"_esc_";"%")
+
+		$dpath := $path+"app/views/"+$controller+"/show.a4d"
+		$docRef := create document($dpath;"TxMt")
+		send packet($docRef;$rshow)
+		close document($docRef)
+		writebr('<textarea rows="20" cols="80">SHOW\n$rshow\</textarea>')
+	end if
+	a4d.debug.dump collection($rgen)
+	a4d.debug.dump collection($attributes)
+	return
+
+%>
+<a class="dlink-button" href="<%=rest.action_controller_path("rgen/move";-1;"controller="+$controller)%>">Move Files</a>
+

@@ -1,0 +1,48 @@
+<% /*
+<fusedoc fuse="fbx_switch.a4d" language="Active4D" specification="2.0">
+	<responsibilities>
+		I am the switch statement that handles fuseactions in this circuit.
+		I delegate to the fuses responsible for handling a given fuseaction.
+	</responsibilities>
+	<io>
+	</io>	
+</fusedoc>
+
+$Id: fbx_switch.a4d 3143 2006-04-27 22:28:40Z aparajita $
+*/
+
+rest.reload
+$rest := rest.get
+case of
+	:($action = "generate")
+	  include("views/generate.a4d")
+		
+	:($action = "select")
+		include("views/select.a4d")
+	:($action = "move")
+		$controller := $attributes{"controller"}
+		$model := $rest{"controllers"}{$controller}
+		array text($files;0)
+		$path := directory of(directory of(current path;*))
+		writebr($path)
+		$cpath :=  $path+'app/controllers/$controller'+"_controller.a4d"
+		$hpath :=  $path+'app/helpers/$controller'+".a4l"
+		$mpath :=  $path+'app/models/$model'+".a4l"
+		$topath := $path+'app/views/$controller'
+		writebr($cpath)
+		writebr($hpath)
+		writebr($mpath)
+		writebr($topath)
+		$frompath := $path+'rgen/app/views/$attributes{"controller"}'
+		writebr($frompath)
+		document list($frompath;$fields)
+		a4d.debug.dump array($fields)
+	:($action = "index")
+		include("views/index.a4d")
+
+		
+		
+else
+	throw('Fusebox: I received a fuseaction called "$fusebox{"fuseaction"}" that the circuit "$fusebox{"circuit"}" does not have a handler for.')
+end case
+%>

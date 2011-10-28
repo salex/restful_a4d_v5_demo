@@ -1,0 +1,6 @@
+<h3>New Unit</h3>
+<%
+	$submitAction := "Create"
+	$form_action := rest.controller_path("Units")
+	include("_form.a4d")
+%>

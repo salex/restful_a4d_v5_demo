@@ -1,0 +1,27 @@
+<div id="masthead">
+  
+	<%
+	// Reserve space for the logged in user's name and a logout button.
+	// The exact HTML will be set when the user logs in.
+	%>
+
+	<div id="logo" class="col-8" style="float:left">
+		<a href="http://www.aparajitaworld.com/site/products/Active4D"><img src="/images/active4d-logo.gif" alt="Active4D" /></a>
+	</div>
+	<div id="user-info" class="col-15" style="float:left;text-align:center">
+		<h3>Restful Active4D Demo - No Login</h3>
+		<%
+			if(not(session{"user.name"}))
+				session{"user.name"} := 'Guest : _request{"ip"}'
+			end if
+		%>
+		<p><%= session{"user.name"}%></p>
+		<div id="session_message">
+			<% $session_remaining := get session timeout %>
+			<span id="minutes_remaining"><%=$session_remaining%></span> minutes remaining
+			<input type="hidden" id="session_timeout" value="<%=$session_remaining%>" />
+		</div>
+	</div>
+	<%write(rest.utils.makecal(current date;"/index.a4d?fuseaction=public.calendar"))%>
+	<div style="clear:both"></div>
+</div>

@@ -1,0 +1,220 @@
+<% /*
+<fusedoc fuse="dsp_hello.a4d" language="Active4D" specification="2.0">
+	<responsibilities>
+		I greet the user when he/she first visits the site.
+	</responsibilities>
+</fusedoc>
+*/ 
+
+fusebox.head.setTitle(fusebox.head.getTitle + " - Rgen")
+%>
+<h1>Scaffold Generation (Rgen)</h1>
+<%include("dlist.a4d")%>
+
+<div id="content-right" class="col-25 dpara"  >
+
+
+<p>Once we have defined our database structure in <i>rest.models.json</i>, we can generate circuits using  <a href="/about/rjen">Rgen</a>
+</p>
+<p>Rgen is a standalone circuit that takes the $rest collection and allows you to generate a scaffold circuit.
+It is patterned after the "Nifty Scaffold" Ruby gem for RoR by <a href="http://workingwithrails.com/person/6491-ryan-bates">Ryan Bates</a>.
+In my opinion, Ryan&rsquo;s <a href="http://railscasts.com/">Railscasts</a> are the major reason RoR has gathered
+ momentum over the last few years. </p>
+
+<p>As usual for me, I&rsquo;ve taken a simple concept - generating applications that have the same look and feel - and have made
+it a little more complex! I did want to show how the scaffold could be extended, and added those extension to the basic concept.
+</p>
+
+<h1>Going to url /rgen will bring up:</h1>
+<div class="dtable" action="/rgen/select"  >
+	<table>
+		<tr class="column-heads">
+			<td>Model</td>
+			<td>Controller</td>
+			<td>Related Models</td>
+			<td>Relation</td>
+			<td>Key/Association</td>
+		</tr>
+		
+			<tr>
+				<td>
+					<input type="radio"  name="model" value="address"  id="address" />
+					address
+				</td>
+				<td>addresses</td>
+				
+				
+					<td>
+						polymorphic</td>
+						<td>belongs_to_as</td>
+						<td>addressable</td>
+				
+ 			</tr>
+		
+			<tr>
+				<td>
+					<input type="radio"  name="model" value="ingredient"  id="ingredient" />
+					ingredient
+				</td>
+				<td>ingredients</td>
+				
+				
+					<td><input type="checkbox" name="include_ingredient" value="unit"  id="include_ingredient" />
+						unit</td>
+						<td>belongs_to</td>
+						<td>ship_unit_id</td>
+				</tr><tr><td colspan="2">
+					<td><input type="checkbox" name="include_ingredient" value="vendor"  id="include_ingredient" />
+						vendor</td>
+						<td>belongs_to</td>
+						<td>vendor_id</td>
+				
+ 			</tr>
+		
+			<tr>
+				<td>
+					<input type="radio"  name="model" value="unit"  id="unit" />
+					unit
+				</td>
+				<td>units</td>
+				
+				
+					<td><input type="checkbox" name="include_unit" value="ingredient"  id="include_unit" />
+						ingredient</td>
+						<td>has_many</td>
+						<td>ship_unit_id</td>
+				</tr><tr><td colspan="2">
+					<td><input type="checkbox" name="include_unit" value="vendor"  id="include_unit" />
+						vendor</td>
+						<td>has_many_through</td>
+						<td>ingredient.ship_unit_id.vendor_id</td>
+				
+ 			</tr>
+		
+			<tr>
+				<td>
+					<input type="radio"  name="model" value="vendor"  id="vendor" />
+					vendor
+				</td>
+				<td>vendors</td>
+				
+				
+					<td><input type="checkbox" name="include_vendor" value="address"  id="include_vendor" />
+						address</td>
+						<td>has_one_as</td>
+						<td>addressable</td>
+				</tr><tr><td colspan="2">
+					<td><input type="checkbox" name="include_vendor" value="ingredient"  id="include_vendor" />
+						ingredient</td>
+						<td>has_many</td>
+						<td>vendor_id</td>
+				
+ 			</tr>
+		
+	</table>
+	<input type="submit" value="Submit" />
+</div>
+
+
+<p>Selecting the model alone will generate a CRUD file for that model only. Selecting a relationship that has a "has_many"
+relation will generate those include relationships and display in index list in the "Show" view. Selecting a "belongs_to" or "has_one"
+relationship will allow those models to be edited from the main model (somewhat dangerous, but it does have applications, such as
+Addresses).</p>
+
+<h1>For instance, selecting vendor and include both relationship and submitting would show the following display:</h1>
+<div class="dtable" action="/rgen/generate" method="post" >
+	<div class="dfilter">
+		Add Buttons <input type="checkbox" name="main_add" value="1" checked="checked" />
+		Show Buttons <input type="checkbox" name="main_show" value="1" checked="checked" />
+		Edit Buttons <input type="checkbox" name="main_edit" value="1" checked="checked" />
+		Delete Buttons <input type="checkbox" name="main_delete" value="1" checked="checked" />
+	</div>
+	<table>
+		<tr class="column-heads">
+			<td>Field</td>
+			<td>Type</td>
+			<td><a href="javascript:toggle('show');">Show</a></td>
+			<td><a href="javascript:toggle('edit');">Edit</a></td>
+			<td><a href="javascript:toggle('index');">Index</a></td>
+			<td>Filter</td>
+		</tr>
+		<tr><td>id</td><td>9</td><td><input type="checkbox" name="show" value="vendor.id"  class="show" id="show" /></td><td>N/A</td><td><input type="checkbox" name="index" value="vendor.id"  class="index" id="index" /></td><td><input type="checkbox" name="filter" value="ftr_id"  id="filter" /></td></tr>
+<tr><td>name</td><td>0</td><td><input type="checkbox" name="show" value="vendor.name"  class="show" id="show" /></td><td><input type="checkbox" name="edit" value="vendor.name"  class="edit" id="edit" /></td><td><input type="checkbox" name="index" value="vendor.name"  class="index" id="index" /></td><td><input type="checkbox" name="filter" value="ftr_name"  id="filter" /></td></tr>
+<tr><td>phone</td><td>0</td><td><input type="checkbox" name="show" value="vendor.phone"  class="show" id="show" /></td><td><input type="checkbox" name="edit" value="vendor.phone"  class="edit" id="edit" /></td><td><input type="checkbox" name="index" value="vendor.phone"  class="index" id="index" /></td><td><input type="checkbox" name="filter" value="ftr_phone"  id="filter" /></td></tr>
+<tr><td>contact</td><td>0</td><td><input type="checkbox" name="show" value="vendor.contact"  class="show" id="show" /></td><td><input type="checkbox" name="edit" value="vendor.contact"  class="edit" id="edit" /></td><td><input type="checkbox" name="index" value="vendor.contact"  class="index" id="index" /></td><td><input type="checkbox" name="filter" value="ftr_contact"  id="filter" /></td></tr>
+<tr><td>comments</td><td>2</td><td><input type="checkbox" name="show" value="vendor.comments"  class="show" id="show" /></td><td><input type="checkbox" name="edit" value="vendor.comments"  class="edit" id="edit" /></td><td><input type="checkbox" name="index" value="vendor.comments"  class="index" id="index" /></td><td><input type="checkbox" name="filter" value="ftr_comments"  id="filter" /></td></tr>
+<tr><td>timestamp</td><td>0</td><td><input type="checkbox" name="show" value="vendor.timestamp"  class="show" id="show" /></td><td><input type="checkbox" name="edit" value="vendor.timestamp"  class="edit" id="edit" /></td><td><input type="checkbox" name="index" value="vendor.timestamp"  class="index" id="index" /></td><td><input type="checkbox" name="filter" value="ftr_timestamp"  id="filter" /></td></tr>
+
+	</table>
+	
+			<h3>
+				Please select fields to display from an include <i>belongs to or has one</i> table: address.
+			</h3>
+			<table>
+				<tr class="column-heads">
+					<td>Field</td>
+					<td>Type</td>
+        			<td><a href="javascript:toggle('oshow');">Show</a></td>
+        			<td><a href="javascript:toggle('oedit');">Edit</a></td>
+        			<td><a href="javascript:toggle('oindex');">Index</a></td>
+				</tr>
+				<tr><td>id</td><td>9</td><td><input type="checkbox" name="show" value="address.id"  class="oshow" id="show" /></td><td>N/A</td><td><input type="checkbox" name="index" value="address.id"  class="oindex" id="index" /></td></tr>
+<tr><td>addressable_type</td><td>0</td><td><input type="checkbox" name="show" value="address.addressable_type"  class="oshow" id="show" /></td><td><input type="checkbox" name="edit" value="address.addressable_type"  class="oedit" id="edit" /></td><td><input type="checkbox" name="index" value="address.addressable_type"  class="oindex" id="index" /></td></tr>
+<tr><td>addressable_id</td><td>9</td><td><input type="checkbox" name="show" value="address.addressable_id"  class="oshow" id="show" /></td><td><input type="checkbox" name="edit" value="address.addressable_id"  class="oedit" id="edit" /></td><td><input type="checkbox" name="index" value="address.addressable_id"  class="oindex" id="index" /></td></tr>
+<tr><td>street</td><td>2</td><td><input type="checkbox" name="show" value="address.street"  class="oshow" id="show" /></td><td><input type="checkbox" name="edit" value="address.street"  class="oedit" id="edit" /></td><td><input type="checkbox" name="index" value="address.street"  class="oindex" id="index" /></td></tr>
+<tr><td>city</td><td>0</td><td><input type="checkbox" name="show" value="address.city"  class="oshow" id="show" /></td><td><input type="checkbox" name="edit" value="address.city"  class="oedit" id="edit" /></td><td><input type="checkbox" name="index" value="address.city"  class="oindex" id="index" /></td></tr>
+<tr><td>state</td><td>0</td><td><input type="checkbox" name="show" value="address.state"  class="oshow" id="show" /></td><td><input type="checkbox" name="edit" value="address.state"  class="oedit" id="edit" /></td><td><input type="checkbox" name="index" value="address.state"  class="oindex" id="index" /></td></tr>
+<tr><td>zip</td><td>0</td><td><input type="checkbox" name="show" value="address.zip"  class="oshow" id="show" /></td><td><input type="checkbox" name="edit" value="address.zip"  class="oedit" id="edit" /></td><td><input type="checkbox" name="index" value="address.zip"  class="oindex" id="index" /></td></tr>
+<tr><td>primary_phone</td><td>0</td><td><input type="checkbox" name="show" value="address.primary_phone"  class="oshow" id="show" /></td><td><input type="checkbox" name="edit" value="address.primary_phone"  class="oedit" id="edit" /></td><td><input type="checkbox" name="index" value="address.primary_phone"  class="oindex" id="index" /></td></tr>
+<tr><td>secondary_phone</td><td>0</td><td><input type="checkbox" name="show" value="address.secondary_phone"  class="oshow" id="show" /></td><td><input type="checkbox" name="edit" value="address.secondary_phone"  class="oedit" id="edit" /></td><td><input type="checkbox" name="index" value="address.secondary_phone"  class="oindex" id="index" /></td></tr>
+<tr><td>email</td><td>0</td><td><input type="checkbox" name="show" value="address.email"  class="oshow" id="show" /></td><td><input type="checkbox" name="edit" value="address.email"  class="oedit" id="edit" /></td><td><input type="checkbox" name="index" value="address.email"  class="oindex" id="index" /></td></tr>
+
+			</table>
+			
+		
+		
+		<h3>
+			Please select fields to display in included <i>has many</i> table: ingredient.
+		</h3>
+		<div class="dfilter">
+			Add Buttons <input type="checkbox" name="inc_add" value="1" checked="checked" />
+			Show Buttons <input type="checkbox" name="inc_show" value="1" checked="checked" />
+			Edit Buttons <input type="checkbox" name="inc_edit" value="1" checked="checked" />
+			Delete Buttons <input type="checkbox" name="inc_delete" value="1" checked="checked" />
+		</div>
+		<table>
+			<tr class="column-heads">
+				<td>Field</td>
+				<td>Type</td>
+    			<td><a href="javascript:toggle('mindex');">Index</a></td>
+			</tr>
+			<tr><td>id</td><td>9</td><td><input type="checkbox" name="ingredient_index" value="id"  class="mindex" id="ingredient_index" /></td></tr>
+<tr><td>name</td><td>0</td><td><input type="checkbox" name="ingredient_index" value="name"  class="mindex" id="ingredient_index" /></td></tr>
+<tr><td>ship_qty</td><td>1</td><td><input type="checkbox" name="ingredient_index" value="ship_qty"  class="mindex" id="ingredient_index" /></td></tr>
+<tr><td>ship_unit_id</td><td>9</td><td><input type="checkbox" name="ingredient_index" value="ship_unit_id"  class="mindex" id="ingredient_index" /></td></tr>
+<tr><td>price</td><td>1</td><td><input type="checkbox" name="ingredient_index" value="price"  class="mindex" id="ingredient_index" /></td></tr>
+<tr><td>vendor_id</td><td>9</td><td><input type="checkbox" name="ingredient_index" value="vendor_id"  class="mindex" id="ingredient_index" /></td></tr>
+<tr><td>timestamp</td><td>0</td><td><input type="checkbox" name="ingredient_index" value="timestamp"  class="mindex" id="ingredient_index" /></td></tr>
+<tr><td>time</td><td>11</td><td><input type="checkbox" name="ingredient_index" value="time"  class="mindex" id="ingredient_index" /></td></tr>
+
+		</table>
+		
+		<input type="hidden" name="includes" value="address;ingredient" id="includes" /><input type="hidden" name="model" value="vendor" id="model" />
+	<input type="submit" value="Submit" />
+</div>
+
+<p>On this page you select what fields you want included on the different views. You select all the fields with the header link
+and then deselect what you don&rsquo;t want. Submitting the form would then generate all the files in the Rgen directory. It will
+also display the contents of the generated files in textareas. This is to allow you to see how it works in this demo. You can then
+move your scaffold application to the app directory.<p>
+
+<p>I won&rsquo;t go into much more description in that it is a fairly complex generation, but it just uses templates and populates
+fields based on the $rest collection and what fields and relationships you included.</p>
+
+<h1>Try it!</h1>
+<p>It&rsquo;s free! <a class="dlink-button" href="/rgen">Rgen demo</a></p>
+
+<h1>Other Links</h1>
+<p>You may also want to look at the CSS link <a class="" href="/about/css">CSS Usage</a> and the <a class="" href="/about/how">How it Works</a> link.</p>
+
+</div>

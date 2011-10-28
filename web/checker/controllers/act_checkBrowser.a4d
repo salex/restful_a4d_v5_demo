@@ -1,0 +1,84 @@
+<% /*
+<fusedoc fuse="act_checkBrowser.a4d" language="Active4D" specification="2.0">
+	<responsibilities>
+		I check to see if the browser is supported.
+	</responsibilities>
+	<io>
+		<in>
+			<string name="User-Agent" scope="request" comments="The HTTP header" />
+			<string name="$XFA_onUnsupportedBrowser" comments="Go here if using unsupported browser" />
+			<string name="$XFA_onIE5Win" comments="Go here if using IE 5 Win" />
+			<string name="$XFA_onOperaMac" comments="Go here if using Opera Mac" />
+			<string name="$XFA_onUnsupportedBrowser" comments="Go here if using other bogus browsers" />
+		</in>
+	</io>	
+</fusedoc>
+*/
+
+$ua := request info{"User-Agent"}
+c_real($version)
+
+case of
+	:($ua =~ "|\bAppleWebKit\b|")
+		// Anything that uses AppleWebKit is OK
+		$success := true
+		
+	:($ua =~ "|\bGecko\b|")
+		// Any Gecko browser is OK
+		$success := true
+		
+	:(regex match("|^.+? Konqueror/(\d+).*$|"; $ua; $matches))
+		// Konquerer 3+ is OK
+		$success := num($matches{1}) >= 3.0
+		
+	:(regex match("| iCab (\d)|"; $ua; $matches))
+		// iCab 3+ is OK
+		$success := num($matches{1}) >= 3
+		
+	:(regex match("#Opera/(\d+\.\d+).+\((Windows|Mac_PowerPC).*\)#"; $ua; $matches))
+		// Opera as itself. Must have Windows Opera or Opera Mac >= 7.5.
+		if ($matches{2} = "Windows")
+			$success := true
+		else
+			$success := num($matches{1}) >= 7.5
+			
+			if ($success)
+				redirect(fusebox.makeURL($XFA_onOperaMac))
+			end if
+		end if
+		
+	:(regex match("/^.+?; (Windows|Mac_PowerPC).*\) Opera (\d+\.\d+).*$/"; $ua; $matches))
+		// Opera masquerading as another browser. Must have Windows Opera or Opera Mac >= 8.5.
+		if ($matches{1} = "Windows")
+			$success := true
+		else
+			$version := num($matches{2})
+			$success := $version >= 8.5
+			
+			if ($version < 8.5) & ($version >= 7.5)
+				redirect(fusebox.makeURL($XFA_onOperaMac))
+			end if
+		end if
+		
+	:(regex match("|^.+? MSIE (\d+\.\d+).*$|"; $ua; $matches))
+		// Internet Explorer, Win version has to be >= version 5, Mac is rejected
+		$version := num($matches{1})
+		
+		if ($ua = "@; Mac_PowerPC)")
+			$success := false
+		else
+			if ($version < 6)
+				redirect(fusebox.makeURL($XFA_onIE5Win))
+			else
+				$success := true
+			end if
+		end if
+else
+	// Any other browsers are not supported
+	$success := false
+end case
+
+if (not($success))
+	redirect(fusebox.makeURL($XFA_onUnsupportedBrowser))
+end if
+%>

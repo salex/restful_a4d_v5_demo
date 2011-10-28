@@ -1,0 +1,134 @@
+
+<%
+// Make the base query string for the edit links
+$baseQuery := a4d.web.collectionItemsToQuery($attributes; "ftr;ftr_name;ftr_contact;pbst")
+
+%>
+<h3>Show Vendor</h3>
+
+	<div class="box dform">
+		<fieldset>
+			<legend>Vendor Information</legend>
+			
+       		<div class="dleft col-14">
+
+					<div>
+						<label>Id</label>
+						<%=$vendor{"vendor.id"} %>
+						<br />
+					</div>
+			
+					<div>
+						<label>Name</label>
+						<%=$vendor{"vendor.name"} %>
+						<br />
+					</div>
+			
+					<div>
+						<label>Contact</label>
+						<%=$vendor{"vendor.contact"} %>
+						<br />
+					</div>
+			
+					<div>
+						<label>Comments</label>
+						<%=$vendor{"vendor.comments"} %>
+						<br />
+					</div>
+			
+					<div>
+						<label>Timestamp</label>
+						<%=$vendor{"vendor.timestamp"} %>
+						<br />
+					</div>
+			
+					<div>
+						<label>Address Street</label>
+						<%=$address{"address.street"} %>
+						<br />
+					</div>
+			</div>
+<div class="dright col-14">
+
+					<div>
+						<label>Address City</label>
+						<%=$address{"address.city"} %>
+						<br />
+					</div>
+			
+					<div>
+						<label>Address State</label>
+						<%=$address{"address.state"} %>
+						<br />
+					</div>
+			
+					<div>
+						<label>Address Zip</label>
+						<%=$address{"address.zip"} %>
+						<br />
+					</div>
+			
+					<div>
+						<label>Address Primary Phone</label>
+						<%=$address{"address.primary_phone"} %>
+						<br />
+					</div>
+			
+					<div>
+						<label>Address Secondary Phone</label>
+						<%=$address{"address.secondary_phone"} %>
+						<br />
+					</div>
+			
+					<div>
+						<label>Address Email</label>
+						<%=$address{"address.email"} %>
+						<br />
+					</div>
+			</div>
+
+			
+			<br class="dclear" />
+			<div class="dactions">
+				<strong>Actions: </strong>
+				
+				<a class="dlink-button" href="<%=rest.edit_controller_path("Vendors";$Vendor{"Vendor.id"})%>">Edit</a>
+				
+				
+				<%=delete_link("Vendors";$Vendor{"Vendor.id"}) %>
+				
+				<a class="dlink-button"  href="<%=rest.controller_path("Vendors") %><%=choose($basequery;"?"+$basequery;"")%>">Return to Vendors</a>
+				
+			</div>
+		</fieldset>
+	</div>
+	
+		<fieldset>
+			<legend>Resources</legend>
+	
+			<div class="dtab">
+			
+				<input id="tab" type="hidden" value="<%=choose($attributes{"oc"} # "";$attributes{"oc"};"ingredients")%>" />
+			    <ul>
+				
+						<li id="ingredients" class="<%=choose(($attributes{"oc"} = "") | ($attributes{"oc"} = "ingredients") ;"activelink";"")%>">
+							<a href="javascript:rajaxUpdate('Vendors','ingredients',<%=$Vendor{"Vendor.id"}%>,'<%=$basequery%>')">ingredients</a>
+						</li>
+						
+					
+					
+			    </ul>
+				<br class="dclear" />
+		
+			</div>
+			<div style="clear:both"></div>
+			<div id="many-div" class="dtable"></div>
+		</fieldset>
+	
+	<script type="text/javascript" charset="utf-8">
+		<%if (collection has($attributes;"bst"))%>
+			rajaxUpdate('Vendors',$('tab').value,<%=$Vendor{"Vendor.id"}%>,'<%=$basequery%>','<%=$attributes{"bst"} %>')
+		<%else%>
+			rajaxUpdate('Vendors',$('tab').value,<%=$Vendor{"Vendor.id"}%>,'<%=$basequery%>')
+		<%end if%>
+	</script>

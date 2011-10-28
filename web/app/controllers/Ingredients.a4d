@@ -1,0 +1,77 @@
+<%		
+
+method "validRoute"($attributes)
+end method
+
+case of
+	:($action = "index")
+		$Ingredients := Ingredient.find_all($attributes)
+		include("../views/Ingredients/index.a4d")
+	:($action = "show")
+		$Ingredient := Ingredient.find($attributes)
+
+		$unit := Ingredient.find_related("unit";$attributes;$Ingredient)
+
+		$vendor := Ingredient.find_related("vendor";$attributes;$Ingredient)
+
+		include("../views/Ingredients/show.a4d")
+		
+	:($action = "new")
+		$Ingredient := Ingredient.new($attributes)
+		$valid_parent := rest.validParent($circuit;$ingredient;$attributes)
+		
+
+		$unit := Ingredient.find_related("unit";$attributes;$Ingredient)
+
+		$vendor := Ingredient.find_related("vendor";$attributes;$Ingredient)
+
+		include("../views/Ingredients/new.a4d")
+		
+	:($action = "create")
+		$result := Ingredient.create($attributes)
+		if($result = "success")
+			session{"errmsg"} := "info:Ingredient Created"
+			redirect(choose($attributes{"_referer"};$attributes{"_referer"};rest.controller_path("Ingredients")))
+			
+		else
+			session{"errmsg"} := "Ingredient NOT created. Reason: "+$result
+			redirect(choose($attributes{"_referer"};$attributes{"_referer"};rest.controller_path("Ingredients")))
+		end if
+		
+	:($action = "edit")
+		$Ingredient := Ingredient.find($attributes)
+
+		$unit := Ingredient.find_related("unit";$attributes;$Ingredient)
+
+		$vendor := Ingredient.find_related("vendor";$attributes;$Ingredient)
+
+		include("../views/Ingredients/edit.a4d")
+		
+	:($action = "update")
+		$result := Ingredient.update($attributes)
+		if($result = "success")
+			session{"errmsg"} := "info:Ingredient Updated"
+			redirect(rest.controller_path("Ingredients";num($attributes{"id"})))
+		else
+			session{"errmsg"} := "Ingredient NOT Updated. Reason: "+$result
+			redirect(rest.controller_path("Ingredients";num($attributes{"id"})))
+		end if
+		
+	:($action = "destroy")
+		$result := Ingredient.delete($attributes)
+		if($result = "success")
+			session{"errmsg"} := "info:Ingredient Deleted"
+			redirect(choose($attributes{"_referer"};$attributes{"_referer"};rest.controller_path("Ingredients")))
+		else
+			session{"errmsg"} := "Ingredient NOT deleted. Reason: "+$result
+			redirect(choose($attributes{"_referer"};$attributes{"_referer"};rest.controller_path("Ingredients";num($attributes{"id"}))))
+		end if
+		
+	:($action = "_test")
+		$Ingredient := Ingredient.find($attributes)
+		include("../views/Ingredients/test.a4d")
+
+	else
+		Throw('Action: $action not found for controller Ingredients')
+end case
+%>

@@ -1,0 +1,117 @@
+
+<%
+// Make the base query string for the edit links
+$baseQuery := a4d.web.collectionItemsToQuery($attributes; "ftr;ftr_name;ftr_contact;pbst")
+
+%>
+<div class="box dform">
+	<form name="form"  action="<%=$form_action%>" method="post" onsubmit="return submitForm();">
+		<fieldset>
+			<legend>Vendor Information <%=choose($attributes{"id"} = "new";' - Adding Vendor';"")%></legend>
+		<div class="dleft col-14">
+
+				<div>
+					
+						<label>Name</label>
+						<%=html.text_field_tag("vendor.name";$vendor{"vendor.name"})  %>
+						
+					<br />
+				</div>
+		
+				<div>
+					
+						<label>Contact</label>
+						<%=html.text_field_tag("vendor.contact";$vendor{"vendor.contact"})  %>
+						
+					<br />
+				</div>
+		
+				<div>
+					
+						<label class="textarea">Comments</label>
+						<%=html.textarea_tag("vendor.comments";$vendor{"vendor.comments"}) %>
+					
+					<br />
+				</div>
+		
+				<div>
+					
+						<label class="textarea">Street</label>
+						<%=html.textarea_tag("address.street";$address{"address.street"}) %>
+					
+					<br />
+				</div>
+		</div>
+<div class="dright col-14">
+
+				<div>
+					
+						<label>City</label>
+						<%=html.text_field_tag("address.city";$address{"address.city"})  %>
+						
+					<br />
+				</div>
+		
+				<div>
+					
+						<label>State</label>
+						<%=html.text_field_tag("address.state";$address{"address.state"})  %>
+						
+					<br />
+				</div>
+		
+				<div>
+					
+						<label>Zip</label>
+						<%=html.text_field_tag("address.zip";$address{"address.zip"})  %>
+						
+					<br />
+				</div>
+		
+				<div>
+					
+						<label>Primary Phone</label>
+						<%=html.text_field_tag("address.primary_phone";$address{"address.primary_phone"})  %>
+						
+					<br />
+				</div>
+		
+				<div>
+					
+						<label>Secondary Phone</label>
+						<%=html.text_field_tag("address.secondary_phone";$address{"address.secondary_phone"})  %>
+						
+					<br />
+				</div>
+		</div>
+
+			<div>
+				<%=html.hidden_field_tag("Vendor_id";$attributes{"id"})%>
+<%=html.hidden_field_tag("address_id";$address{"address.id"})%>
+
+				<% if(defined($valid_parent))
+					write($valid_parent)
+				end if %>
+				
+				<%if($submitAction = "update")%>
+					<%=html.hidden_field_tag("_method";"put")%>
+				<%end if%>
+				<% =html.hidden_field_tag("_referer";_request{"_referer"})%>
+			
+			</div>
+			
+			<div class="dactions">
+				<input name="b_save" type="submit" value="<%=$submitAction%>" />
+				<b>Cancel [</b>
+				<%if($attributes{"id"} # "new") %>
+					
+					<a class="dlink-button"  href="<%=rest.controller_path("Vendors";$Vendor{"Vendor.id"};$baseQuery) %>">Show</a>
+					
+				<%end if %>
+				<a class="dlink-button"  href="<%=rest.controller_path("Vendors";-1;$baseQuery) %>">Return to Vendors</a>
+				
+				<b>]</b>
+			</div>
+		</fieldset>
+	</form>
+</div>

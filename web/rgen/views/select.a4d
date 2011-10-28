@@ -1,0 +1,184 @@
+<script type="text/javascript" charset="utf-8">
+function toggle(cls){
+	num = $$('input.'+cls);
+	for (var x = 0; x < num.length; x++){
+		if (num[x].checked){
+			num[x].checked = false;
+			}else{
+			num[x].checked = true;
+		}
+	}
+}
+</script>
+
+<%
+	//a4d.debug.dump collection($attributes)
+//	a4d.debug.dump collection($rest)
+	method "isChecked"($coll;$elem)
+		$main := a4d.utils.filterCollection($coll;"main_@")
+		if (count collection items($main) > 0)
+			if ($coll{$elem})
+				return('checked="checked"')
+			else
+				return("")
+			end if
+		else
+			return('checked="checked"') // default buttons
+		end if
+		
+	end method
+	method "isIn"($elem;&$in)
+		
+		if ($elem ~ $in)
+				return(true)
+			else
+				return(false)
+		end if
+	end method
+	$t := rest.getTable($attributes{"model"}) 
+    $path := directory of(directory of(current path;*))
+	$bpath := $path+"blobs/"+$attributes{"model"}+".blob"
+	c_blob($modelBlob)
+	if (test path name($bpath) = 1)
+		document to blob($bpath;$modelBlob)
+		$m := blob to collection($modelBlob)
+	else
+		$m := new collection
+	end if	
+%>
+<h3>
+	Please select fields from <%=$attributes{"model"}%> model you wish to include.
+</h3>
+<form class="dtable" action="<%=rest.action_controller_path("rgen/generate") %>" method="post" >
+	<div class="dfilter">
+		Add Buttons <input type="checkbox" name="main_add" value="1" <%=isChecked($m;"main_add")%> />
+		Show Buttons <input type="checkbox" name="main_show" value="1" <%=isChecked($m;"main_show")%> />
+		Edit Buttons <input type="checkbox" name="main_edit" value="1" <%=isChecked($m;"main_edit")%> />
+		Delete Buttons <input type="checkbox" name="main_delete" value="1" <%=isChecked($m;"main_delete")%> />
+		<input type="submit" value="Submit" />
+		
+	</div>
+	<table>
+		<tr class="column-heads">
+			<td>Field</td>
+			<td>Type</td>
+			<td><a href="javascript:toggle('show');">Show</a></td>
+			<td><a href="javascript:toggle('edit');">Edit</a></td>
+			<td><a href="javascript:toggle('index');">Index</a></td>
+			<td>Filter</td>
+		</tr>
+		<%
+			for each ($t{"field_names"}; $value; $index)
+				$mapItem := $attributes{"model"}+"."+$value   //+" : ["+$rest{"models"}{$attributes{"model"}}{"table"}+"]"+$value
+				write('<tr><td>$value</td>')
+				write('<td>$t{"field_types"}{$index}</td>')
+				$chkd := isIn($mapItem;$m{"show"})
+				write('<td>'+html.check_box_tag("show";$mapItem;html.opt(':class => :show; :checked => $chkd ' ))+'</td>')
+				if($value  = "id")
+					write('<td>'+"N/A"+'</td>')
+			
+				else
+				    $chkd := isIn($mapItem;$m{"edit"})
+    				
+					write('<td>'+html.check_box_tag("edit";$mapItem;html.opt(':class => :edit; :checked => $chkd' ))+'</td>')
+				end if
+				$chkd := isIn($mapItem;$m{"index"})
+				write('<td>'+html.check_box_tag("index";$mapItem;html.opt(':class => :index; :checked => $chkd'))+'</td>')
+				$chkd := isIn("ftr_"+$value;$m{"filter"})
+				write('<td>'+html.check_box_tag("filter";"ftr_"+$value;html.opt(':class => :index; :checked => $chkd'))+'</td></tr>\n')
+			end for each 
+		%>
+	</table>
+	<%
+if (collection has($attributes; "include_"+$attributes{"model"}))
+		  
+	if (is array(type($attributes{"include_"+$attributes{"model"}})))
+		copy array($attributes{"include_"+$attributes{"model"}};$includes)
+	else
+		array text($includes;0)
+		$includes{} := $attributes{"include_"+$attributes{"model"}}
+	end if
+	for each ($includes; $model; $index)
+		$t := rest.getTable($model)
+		$relation := $rest{"models"}{$attributes{"model"}}{"relations"}{$model}{"relation"}
+		if ("has_many" ~ $relation)
+		%>
+		
+		<h3>
+			Please select fields to display in included <i>has many</i> table: <%=$model%>.
+		</h3>
+		<div class="dfilter">
+			Add Buttons <input type="checkbox" name="=inc_add" value="1" <%=isChecked($m;"inc_add")%> />
+			Show Buttons <input type="checkbox" name="inc_show" value="1" <%=isChecked($m;"inc_show")%> />
+			Edit Buttons <input type="checkbox" name="inc_edit" value="1" <%=isChecked($m;"inc_edit")%> />
+			Delete Buttons <input type="checkbox" name="inc_delete" value="1" <%=isChecked($m;"inc_delete")%> />
+		</div>
+		<table>
+			<tr class="column-heads">
+				<td>Field</td>
+				<td>Type</td>
+    			<td><a href="javascript:toggle('mindex');">Index</a></td>
+			</tr>
+			<%
+				for each ($t{"field_names"}; $value; $index)
+					write('<tr><td>$value</td>')
+					write('<td>$t{"field_types"}{$index}</td>')
+					$chkd := isIn($value;$m{$model+"_index"})
+			    
+					write('<td>'+html.check_box_tag($model+"_index";$value;html.opt(':class => :mindex; :checked => $chkd '))+'</td></tr>\n')
+				end for each 
+			%>
+		</table>
+		
+		<%else%>
+			<h3>
+				Please select fields to display from an include <i>belongs to or has one</i> table: <%=$model%>.
+			</h3>
+			<table>
+				<tr class="column-heads">
+					<td>Field</td>
+					<td>Type</td>
+        			<td><a href="javascript:toggle('oshow');">Show</a></td>
+        			<td><a href="javascript:toggle('oedit');">Edit</a></td>
+        			<td><a href="javascript:toggle('oindex');">Index</a></td>
+				</tr>
+				<%
+					for each ($t{"field_names"}; $value; $index)
+						$mapItem := $model+"."+$value   //+" : ["+$rest{"models"}{$model}{"table"}+"]"+$value
+						
+						write('<tr><td>$value</td>')
+						write('<td>$t{"field_types"}{$index}</td>')
+						$chkd := isIn($mapItem;$m{"show"})
+						write('<td>'+html.check_box_tag("show";$mapItem;html.opt(':class => :oshow; :checked => $chkd'  ))+'</td>')
+						if($value  = "id")
+							write('<td>'+"N/A"+'</td>')
+					
+						else
+						  $chkd := isIn($mapItem;$m{"edit"})
+  						
+							write('<td>'+html.check_box_tag("edit";$mapItem;html.opt(':class => :oedit; :checked => $chkd'))+'</td>')
+						end if
+						$chkd := isIn($mapItem;$m{"index"})
+						
+						write('<td>'+html.check_box_tag("index";html.opt(':class => :oindex; :checked => $chkd'))+'</td></tr>\n')
+					end for each 
+				%>
+			</table>
+			
+		<%end if
+	end for each
+end if
+if (collection has($attributes; "include_"+$attributes{"model"}))
+    if (is array(type($attributes{"include_"+$attributes{"model"}})))
+		$include := join array($attributes{"include_"+$attributes{"model"}};";")
+	else
+		$include := $attributes{"include_"+$attributes{"model"}}
+	end if
+	write(html.hidden_field_tag("includes";$include))
+	
+end if
+write(html.hidden_field_tag("model";$attributes{"model"}))
+
+%>
+	<input type="submit" value="Submit" />
+</form>

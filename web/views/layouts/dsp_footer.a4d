@@ -1,0 +1,13 @@
+<div id="footer" class="box">
+
+  <div style="float:right">Restful Active4D - 	Copyright &copy; 2009-<%=year of(current date)%> Steve Alex<br />
+</div>
+  
+  
+  <div id="footer_copyright">
+	Copyright &copy; 2001-<%=year of(current date)%> Aparajita Fishman<br />
+	<%=get version%>
+  </div>
+  
+</div>
+

@@ -1,0 +1,621 @@
+/*
+	Active4D private - DO NOT EDIT!
+	
+	Copyright (c) 2005-2009 Aparajita Fishman, All Rights Reserved
+	Based on PHP version by David Huyck <b@bombusbee.com>
+	
+	Lists are a way of putting multiple values into a single string, delimited by some character.
+	This is very handy for some types of problems. For example, a URL can be treated as a list 
+	of path elements delimited by "/". Or the string "one,two,three" can be treated as a list 
+	of three elements.
+	
+	Note the following attributes of lists:
+	
+		- Empty elements are ignored, so "one,,three" would be a list of two elements, 
+		  "one" and "three".
+	
+		- Delimiters at the beginning and end of the list are ignored, so "/one/two/three/" 
+		  would be a list of three elements.
+		  
+		- If the delimiter passed to a method contains more than one character, then any 
+		  character in the delimiter can delimit the list elements, but only the first 
+		  character in the delimiter will be used if the method adds an element to the list.
+	
+		- List elements are numbered beginning at 1.
+		
+		- Values added to a list must be convertible to text via the String command
+		  (which includes strings and text).
+	
+	This implementation is a port of PHP code, which in turn was an attempt to recreate
+	ColdFusion's list functions in a set of methods.
+	
+	The functions names are the same as they are in ColdFusion/PHP, and the exact 
+	functionality has been replicated as much as possible.
+*/
+
+library "a4d.lists"
+
+
+
+/************************************************************************************************
+	arrayToList
+
+	$inArray	->	ArrayRef	Array to convert
+	$inDelim	->	String		List delimiter
+	RESULT		<-	Text		Contents of $inArray as a delimited list
+	
+	Converts an array into a delimited list.
+************************************************************************************************/
+
+method "arrayToList"(&$inArray; $inDelim = ",")
+	
+	return (join array($inArray; $inDelim[[1]]))
+	
+end method
+
+
+
+/************************************************************************************************
+	append
+	
+	$inList		->	Text		Delimited list
+	$inValue	->	<any>		Value to append
+	$inDelim	->	String		List delimiter
+	RESULT		<-	Text		New list
+	
+	Append a value to a list. The value can be of any type that can be
+	converted to text with the String command.
+
+	NOTE: This method is here for completeness. You can just as easily concatenate yourself.
+************************************************************************************************/
+
+method "append"($inList; $inValue; $inDelim = ",")
+	
+	split string($inList; $inDelim; $arrayList)
+	$arrayList{} := string($inValue)		
+	return (join array($arrayList; $inDelim[[1]]))
+	
+end method
+
+
+
+/************************************************************************************************
+	changeDelims
+
+	$inList		->	Text		Delimited list
+	$inNewDelim	->	String		New delimiter to use
+	$inDelim	->	String		List delimiter
+	RESULT		<-	Text		New list
+	
+	Change the delimiters, returns a modified copy.
+************************************************************************************************/
+
+method "changeDelims"($inList; $inNewDelim; $inDelim = ",")
+	
+	return (replace string($inList; $inDelim[[1]]; $inNewDelim[[1]]))
+	
+end method
+
+
+
+/************************************************************************************************
+	contains
+
+	$inList		->	Text		Delimited list
+	$inSubstr	->	Text		Text to match
+	$inDelim	->	String		List delimiter
+	RESULT		<-	Boolean		True if any element of list matches, otherwise False
+	
+	Returns true if any element in the list contains a substring,
+	doing a case- and diacritical-sensitive match.
+************************************************************************************************/
+
+method "contains"($inList; $inSubstr; $inDelim = ",")
+	
+	c_longint($size; $i; $pos)
+	$size := split string($inList; $inDelim; $arrayList)
+	
+	for ($i; 1; $size)
+		$pos := 1
+					
+		while ($pos > 0)
+			$pos := position($inSubstr; $arrayList{$i}; $pos)
+			
+			if ($pos > 0)
+				if (identical strings(substring($arrayList{$i}; $pos; length($inSubstr)); $inSubstr))
+					return (true)
+				else
+					++$pos
+				end if
+			else
+				break
+			end if
+		end while
+	end for
+
+	return (false)
+	
+end method
+
+
+
+/************************************************************************************************
+	containsNoCase
+
+	$inList		->	Text		Delimited list
+	$inSubstr	->	Text		Text to match
+	$inDelim	->	String		List delimiter
+	RESULT		<-	Boolean		True if any element of list matches, otherwise False
+	
+	Returns true if any element in the list contains a substring,
+	doing a case- and diacritical-insensitive match.
+************************************************************************************************/
+
+method "containsNoCase"($inList; $inSubstr; $inDelim = ",")
+	
+	return (findNoCase($inList; "@" + $inSubstr + "@"; $inDelim) # 0)
+	
+end method
+
+
+
+/************************************************************************************************
+	deleteAt
+
+	$inList		->	Text		Delimited list
+	$inIndex	->	Number		Element to delete
+	$inDelim	->	String		List delimiter
+	RESULT		<-	Text		New list
+	
+	Deletes an element from a list, returns a modified copy.
+************************************************************************************************/
+
+method "deleteAt"($inList; $inIndex; $inDelim = ",")
+	
+	c_longint($size)
+	$size := split string($inList; $inDelim; $arrayList)
+	
+	if (($inIndex > 0) & ($inIndex <= $size))
+		delete element($arrayList; $inIndex)
+	end if
+	
+	return (join array($arrayList; $inDelim[[1]]))
+	
+end method
+
+
+
+/************************************************************************************************
+	find
+
+	$inList		->	Text		Delimited list
+	$inMatch	->	Text		Text to match
+	$inDelim	->	String		List delimiter
+	RESULT		<-	Number		Index of first matching element, or zero if no match
+	
+	Returns index of first matching element in the list that exactly matches 
+	a string, doing a case- and diacritical-sensitive match.
+************************************************************************************************/
+
+method "find"($inList; $inMatch; $inDelim = ",")
+	
+	c_longint($size; $i)
+	$size := split string($inList; $inDelim; $arrayList)
+	
+	for ($i; 1; $size)
+		if (identical strings($arrayList{$i}; $inMatch))
+			return ($i)
+		end if
+	end for
+
+	return (0)
+	
+end method
+
+
+
+/************************************************************************************************
+	findNoCase
+
+	$inList		->	Text		Delimited list
+	$inMatch	->	Text		Text to match
+	$inDelim	->	String		List delimiter
+	RESULT		<-	Number		Index of first matching element, or zero if no match
+	
+	Returns index of first matching element in the list that matches 
+	a string, doing a case- and diacritical-insensitive match.
+************************************************************************************************/
+
+method "findNoCase"($inList; $inMatch; $inDelim = ",")
+	
+	split string($inList; $inDelim; $arrayList)
+	c_longint($index)
+	$index := find in array($arrayList; $inMatch)
+	return (choose($index > 0; $index; 0))
+	
+end method
+
+
+
+/************************************************************************************************
+	first
+
+	$inList		->	Text		Delimited list
+	$inDelim	->	String		List delimiter
+	RESULT		<-	Text		First element of list
+	
+	Returns the first element of a list or an empty string if the list is empty.
+************************************************************************************************/
+
+method "first"($inList; $inDelim = ",")
+	
+	c_longint($size)
+	$size := split string($inList; $inDelim; $arrayList)
+	return (choose($size > 0; $arrayList{1}; ""))
+	
+end method
+
+
+
+/************************************************************************************************
+	getAt
+
+	$inList		->	Text		Delimited list
+	$inIndex	->	Number		Element to get
+	$inDelim	->	String		List delimiter
+	RESULT		<-	Text		Requested element of list
+	
+	Returns a given element of a list. If $inIndex is out of range, an empty
+	string is returned.
+************************************************************************************************/
+
+method "getAt"($inList; $inIndex; $inDelim = ",")
+	
+	c_longint($size)
+	$size := split string($inList; $inDelim; $arrayList)
+
+	if (($inIndex > 0) & ($inIndex <= $size))
+		return (choose($size > 0; $arrayList{$inIndex}; ""))
+	else
+		return ("")
+	end if
+	
+end method
+
+
+
+/************************************************************************************************
+	insertAt
+
+	$inList		->	Text		Delimited list
+	$inIndex	->	Number		Where to insert
+	$inValue	->	<any>		Value to insert
+	$inDelim	->	String		List delimiter
+	RESULT		<-	Text		New list
+	
+	Inserts an element into a list, returns a modified copy. The value can
+	be of any type that can be converted to text with the String command.
+	If $inIndex < 1, the element is prepended. If $inIndex > len($inList),
+	the element as appended.
+************************************************************************************************/
+
+method "insertAt"($inList; $inIndex; $inValue; $inDelim = ",")
+	
+	c_longint($size)
+	$size := split string($inList; $inDelim; $arrayList)
+	$inIndex := max of($inIndex; 1)
+	
+	if ($inIndex <= $size)
+		insert element($arrayList; $inIndex)
+		$arrayList{$inIndex} := string($inValue)
+	else
+		$arrayList{} := string($inValue)
+	end if
+	
+	return (join array($arrayList; $inDelim[[1]]))
+	
+end method
+
+
+
+/************************************************************************************************
+	last
+
+	$inList		->	Text		Delimited list
+	$inDelim	->	String		List delimiter
+	RESULT		<-	Text		Last element of list
+	
+	Returns the last element of a list or an empty string if the list is empty.
+************************************************************************************************/
+method "last"($inList; $inDelim = ",")
+	
+	c_longint($size)
+	$size := split string($inList; $inDelim; $arrayList)
+	return (choose($size > 0; $arrayList{$size}; ""))
+	
+end method
+
+
+
+/************************************************************************************************
+	len
+
+	$inList		->	Text		Delimited list
+	$inDelim	->	String		List delimiter
+	RESULT		<-	Number		Number of elements in list
+	
+	Returns the number of elements in a list.
+************************************************************************************************/
+
+method "len"($inList; $inDelim = ",")
+	
+	return (split string($inList; $inDelim; $arrayList))
+	
+end method
+
+
+
+/************************************************************************************************
+	listToArray
+
+	$inList		->	Text				Delimited list
+	$outArray	<-	String/Text Array	Array to set
+	$inDelim	->	String				List delimiter
+	
+	Convert a list into an array.
+************************************************************************************************/
+
+method "listToArray"($inList; &$outArray; $inDelim = ",")
+	
+	split string($inList; $inDelim; $outArray)
+	
+end method
+
+
+
+/************************************************************************************************
+	prepend
+
+	$inList		->	Text		Delimited list
+	$inValue	->	<any>		Value to insert
+	$inDelim	->	String		List delimiter
+	RESULT		<-	Text		New list
+	
+	Inserts an element at the beginning of a list, returns a modified copy.
+************************************************************************************************/
+
+method "prepend"($inList; $inValue; $inDelim = ",")
+	
+	return (insertAt($inList; 1; $inValue; $inDelim))
+	
+end method
+
+
+
+/************************************************************************************************
+	qualify
+
+	$inList			->	Text		Delimited list
+	$inQualifier	->	String		String to enclose with
+	$inDelim		->	String		List delimiter
+	$inCharAll		->	String		"char" or "all"
+	RESULT			<-	Text		New list
+	
+	Encloses elements in a list with $inQualifer (e.g. double quotes).
+	If $inCharAll = "char", the element will be skipped if it contains any
+	digits. A modified copy of the list is returned.
+************************************************************************************************/
+
+method "qualify"($inList; $inQualifier; $inDelim = ","; $inCharAll = "all")
+	
+	c_longint($size; $i)
+	$size := split string($inList; $inDelim; $arrayList)
+	$i := 1
+	
+	while ($i <= $size)
+		if (($inCharAll = "all") | (($inCharAll = "char") & (first of($arrayList{$i}; "0123456789") = 0)))
+			$arrayList{$i} := $inQualifier + $arrayList{$i} + $inQualifier
+			++$i
+		else
+			delete element($arrayList; $i)
+			--$size
+		end if
+	end while
+	
+	return (join array($arrayList; $inDelim[[1]]))
+	
+end method
+
+
+
+/************************************************************************************************
+	rest
+
+	$inList		->	Text		Delimited list
+	$inDelim	->	String		List delimiter
+	RESULT		<-	Text		New list
+	
+	Returns a copy of the list beginning at the second element. If the list
+	has less than two elements, an empty list is returned.
+************************************************************************************************/
+
+method "rest"($inList; $inDelim = ",")
+	
+	split string($inList; $inDelim; $arrayList)
+	return (join array($arrayList; $inDelim[[1]]; 2))
+	
+end method
+
+
+
+/************************************************************************************************
+	setAt
+
+	$inList		->	Text		Delimited list
+	$inIndex	->	Number		Element to set
+	$inValue	->	<any>		Value to set
+	$inDelim	->	String		List delimiter
+	RESULT		<-	Text		New list
+	
+	Sets an element of a list, returns a modified copy. The value can
+	be of any type that can be converted to text with the String command.
+	If $inIndex is out of range, nothing happens.
+************************************************************************************************/
+
+method "setAt"($inList; $inIndex; $inValue; $inDelim = ",")
+	
+	c_longint($size)
+	$size := split string($inList; $inDelim; $arrayList)
+
+	if (($inIndex > 0) & ($inIndex <= $size))
+		$arrayList{$inIndex} := $inValue
+	end if
+	
+	return (join array($arrayList; $inDelim[[1]]))
+	
+end method
+
+
+
+/************************************************************************************************
+	sort
+
+	$inList			->	Text		Delimited list
+	$inSortType		->	String		Ignored for now, just pass ""
+	$inSortOrder	->	String		">" or "<"
+	$inDelim		->	String		List delimiter
+	RESULT			<-	Text		New list
+	
+	Sorts a list, returns a modified copy. $inSortOrder should be ">" (ascending)
+	or "<" (descending).
+************************************************************************************************/
+
+method "sort"($inList; $inSortType = "TEXTNOCASE"; $inSortOrder = ">"; $inDelim = ",")
+	
+	// $inSortType is ignored, always defaults to TEXTNOCASE
+	split string($inList; $inDelim; $arrayList)
+	
+	if ($inSortOrder = "<")
+		sort array($arrayList; <)
+	else
+		sort array($arrayList; >)
+	end if
+	
+	return (join array($arrayList; $inDelim[[1]]))
+	
+end method
+
+
+
+/************************************************************************************************
+	valueCount
+
+	$inList		->	Text		Delimited list
+	$inValue	->	<any>		Value to match
+	$inDelim	->	String		List delimiter
+	RESULT		<-	Number		Count of matching elements
+	
+	Count how many elements match a value, doing a case- and diacritical-sensitive match
+************************************************************************************************/
+
+method "valueCount"($inList; $inValue; $inDelim = ",")
+	
+	c_longint($size; $i; $count)
+	$size := split string($inList; $inDelim; $arrayList)
+	$count := 0
+	c_text($value)
+	$value := string($inValue)
+	
+	for ($i; 1; $size)
+		if (identical strings($arrayList{$i}; $value))
+			++$count
+		end if
+	end for
+	
+	return ($count)
+	
+end method
+
+
+
+/************************************************************************************************
+	valueCountNoCase
+
+	$inList		->	Text		Delimited list
+	$inValue	->	<any>		Value to match
+	$inDelim	->	String		List delimiter
+	RESULT		<-	Number		Count of matching elements
+	
+	Count how many elements match a value, doing a case- and diacritical-insensitive match
+************************************************************************************************/
+method "valueCountNoCase"($inList; $inValue; $inDelim = ",")
+	
+	c_longint($size; $i; $count)
+	$size := split string($inList; $inDelim; $arrayList)
+	$count := 0
+	c_text($value)
+	$value := string($inValue)
+	
+	for ($i; 1; $size)
+		if ($arrayList{$i} = $value)
+			++$count
+		end if
+	end for
+	
+	return ($count)
+	
+end method
+
+
+
+/************************************************************************************************
+	valueList
+
+	$inField	->	->field		Field to get values from
+	$inDelim	->	String		List delimiter
+	RESULT		<-	Text		New list
+	
+	Returns a delimited list of field values of each record in the current selection.
+************************************************************************************************/
+
+method "valueList"($inField; $inDelim = ",")
+	
+	c_text($list)
+	$list := ""
+	c_pointer($table)
+	$table := table(table($inField))
+	c_longint($selected; $i; $recs)
+	$recs := records in selection($table->)
+	
+	if ($recs = 0)
+		return ($list)
+	end if
+	
+	$selected := selected record number($table->)
+	goto selected record($table->; 1)
+	$list := string($inField->)
+
+	for ($i; 2; $recs)
+		goto selected record($table->; $i)
+		$list += $inDelim[[1]] + $inField->
+	end for
+	
+	// Restore the previous selected record
+	case of
+		:($selected = 0)		// We were before the selection
+			first record($table->)
+			previous record($table->)
+			
+		:($selected > $recs)	// We were after the selection
+			last record($table->)
+			next record($table->)
+	else		
+		goto selected record($table->; $selected)
+	end case
+	
+	return ($list)
+	
+end method
+
+
+end library

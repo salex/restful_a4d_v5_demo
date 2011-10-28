@@ -1,0 +1,41 @@
+<% /*
+<fusedoc fuse="dsp_ie5Warning.a4d" language="Active4D" specification="2.0">
+	<responsibilities>
+		I tell the user that they are using the evil Windows IE 5, and should repent.
+	</responsibilities>
+	<io>
+		<in>
+			<string name="$XFA_home" comments="Go here to continue to the home page" />
+		</in>
+	</io>	
+</fusedoc>
+*/ %>
+<div id="content">
+  <div id="checker">
+  
+    <h1>Warning!</h1>
+	
+    <p class="important-note">We have detected you are using Windows Internet Explorer 5 (IE 5). While this browser will work with our site, please be aware of the following:</p>
+	
+    <ul>
+      <li>Microsoft dropped <strong>all</strong> support for Windows IE 5 at the end of 2003.</li>
+	  
+      <li>Microsoft states the following on their site: 
+      &quot;Microsoft strongly recommends customers install the latest released version of Internet Explorer, which provides improved security protection.&quot;</li>
+	  
+      <li>The latest updates to Internet Explorer are listed by Microsoft as <strong>Critical</strong>,
+      which means continued use of older versions may pose a significant security risk to you and your organization.</li>
+	  
+      <li>IE 5 may work functionally with our site, but there will be several cosmetic defects due to IE 5's incomplete implementation of web standards.</li>
+	  
+      <li>You may want to consider using 
+	  <a href="http://www.mozilla.org/products/firefox/">Firefox</a>, a free alternative to IE.</li>
+	  
+      <li>To install the latest version of Internet Explorer for Windows, click <a href="http://www.microsoft.com/windows/ie/default.mspx">here</a>
+      to go the IE home page.</li>
+    </ul>
+	
+    <p><a id="homeLink" href="<%=fusebox.makeURL($XFA_home)%>">Continue</a></p>
+	
+  </div>
+</div>

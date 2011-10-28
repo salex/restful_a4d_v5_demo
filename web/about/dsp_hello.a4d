@@ -1,0 +1,58 @@
+<% /*
+<fusedoc fuse="dsp_hello.a4d" language="Active4D" specification="2.0">
+	<responsibilities>
+		I greet the user when he/she first visits the site.
+	</responsibilities>
+</fusedoc>
+*/ 
+
+fusebox.head.setTitle(fusebox.head.getTitle + " - Welcome")
+
+%>
+<h1>Welcome to Restful Active4D</h1>
+<%include("dlist.a4d")%>
+<div id="content-right" class="col-25 dpara" style="background: #200 url(/images/bg-bg.png) repeat-x;" >
+  <div id="header">
+	<p class="description">Everyone knows engineers can&rsquo;t write! I <span class="error">is</span> an engineeer, but...</p>
+	<h2 style="margin-top:8px"><a href="/">I wish I could write</a></h2>
+  </div>
+  
+
+<div class="entry entry-1">
+	<div class="entrytitle">
+		<h2><a href="#" title="Why such a stupid domain name?">Why such a stupid domain name?</a></h2> 
+	</div>
+
+
+	<div class="entrybody">
+
+	  <p>To remind myself that there are a some mistakes you can make in your life that are very difficult to overcome. One of
+      my mistakes was getting pissed off at a 5th grade teacher who was really trying to help me improve my writing/English. I
+      refused to accept the help and my stubbornness led to poor communication skills. I don&rsquo;t blame her, but 50 years
+      later I realize that no matter how good you are at doing other things, if you don&rsquo;t have good communications skills
+      &#8211; you can only go so far. I have lost numerous opportunities because of that mistake.</p>
+	  
+	   <p>I had plans of putting up a blog to help me practice writing but never got past the first few pages! This blackness is
+      a clone of the theme. I keep the domain name just in case I needed to write something and had to explain my <a
+      href="http://www.pittsburghese.com/">Pittsburghese</a>. I abandoned the blog and the current port 80 site just points to a RoR application that
+      manages golf scores for a few groups. </p>
+	  
+	   <p>This port 8080 site is a demo site for what I am calling <a href="<%=fusebox.makeURL("about.ra4d")%>"> Restful
+      Active4D</a>.</p>
+	  
+	   <p> Be forewarned -- if you are one of those who gets upset with English mistakes, I could raise your blood pressure!</p>
+	  
+	   <p>Enough blackness - please click on one of the <a href="<%=fusebox.makeURL("about.over")%>"> Overview </a> link to get
+      started.
+
+
+	</div>
+
+	<div class="entrymeta2">
+
+
+
+	</div>
+
+</div>
+</div>

@@ -1,0 +1,82 @@
+<%$bq := $filterQuery+"pbst"%>
+<_esc_
+// Make the base query string for the edit links
+$baseQuery := a4d.web.collectionItemsToQuery($attributes; "<%=$bq%>")
+
+_esc_>
+<div class="box dform">
+	<form name="form"  action="<_esc_=$form_action_esc_>" method="post" onsubmit="return submitForm();">
+		<fieldset>
+			<legend><%=$model%> Information <_esc_=choose($attributes{"id"} = "new";' - Adding <%=$model%>';"")_esc_></legend>
+		<%
+		$soa := size of array($attributes{"edit"})
+		if($soa > 8)
+			$breakDiv := ($soa \ 2) + 1
+			write('<div class="dleft col-14">\n')
+		else
+			$breakDiv := $soa + 10
+		end if
+		for ($i; 1; $soa)
+			$name := $attributes{"edit"}{$i}
+			$cnt := split string($attributes{"edit"}{$i};".";$mf)
+			$mdl := trim($mf{1})
+			$fld := trim($mf{2})
+			$tf := "["+$rest{"models"}{$mdl}{"table"}+"]"+$fld
+			$label := capitalize(replace string($fld;"_";" "))
+			$fptr := get field pointer($tf)
+			$type := type($fptr->)
+			if ($i = $breakDiv)
+				write('</div>\n<div class="dright col-14">\n')
+			end if
+				%>
+				<div>
+					<%if ($type = 2) %>
+						<label class="textarea"><%=$label%></label>
+						<_esc_=html.textarea_tag("<%=$name%>";$<%=$mdl%>{"<%=$mdl%>.<%=$fld%>"}) _esc_>
+					<%else %>
+						<label><%=$label%></label>
+						<_esc_=html.text_field_tag("<%=$name%>";$<%=$mdl%>{"<%=$mdl%>.<%=$fld%>"})  _esc_>
+						<%end if %>
+					<br />
+				</div>
+		<%end for
+			if ($i >= $breakdiv)
+				write("</div>\n")
+			end if%>
+			<div>
+				<% 
+				write($rgen{"model_hidden"})	
+				for each ($rgen{"hasOne"}; $key; $mdl)
+					write($mdl{"related_id"})
+				end for each
+				%>
+				<_esc_ if(defined($valid_parent))
+					write($valid_parent)
+				end if _esc_>
+				
+				<_esc_if($submitAction = "update")_esc_>
+					<_esc_=html.hidden_field_tag("_method";"put")_esc_>
+				<_esc_end if_esc_>
+				<_esc_ =html.hidden_field_tag("_referer";_request{"_referer"})_esc_>
+			
+			</div>
+			
+			<div class="dactions">
+				<input name="b_save" type="submit" value="<_esc_=$submitAction_esc_>" />
+				<b>Cancel [</b>
+				<_esc_if($attributes{"id"} # "new") _esc_>
+					<%if($attributes{"main_show"})%>
+					<a class="dlink-button"  href="<_esc_=rest.controller_path("<%=$controller%>";$<%=$model%>{"<%=$model%>.id"};$baseQuery) _esc_>">Show</a>
+					<%end if %>
+				<_esc_end if _esc_>
+				<a class="dlink-button"  href="<_esc_=rest.controller_path("<%=$controller%>";-1;$baseQuery) _esc_>">Return to <%=$controller%></a>
+				<%
+					for each ($rgen{"hasOne"}; $key; $mdl)
+						write($mdl{"returnParent"})
+					end for each
+				%>
+				<b>]</b>
+			</div>
+		</fieldset>
+	</form>
+</div>

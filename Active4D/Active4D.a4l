@@ -1,0 +1,172 @@
+/*
+	Active4D event handler library
+	
+	Copyright (c) 2001-2008 Aparajita Fishman, All Rights Reserved
+*/
+
+library "Active4D"
+
+
+/*
+	EXECUTION ORDER
+	
+	The methods in this file are arranged according to their execution order.
+	Note that On Session End is executed asynchronously outside of a request.
+*/
+
+
+/***********************************************************************************
+	On Application Start
+	
+	This method is executed once when Active4D's server is started or restarted.
+	When this method runs the shell has already been initialized, so you can
+	reliably read the following variables:
+	
+	<>A4D_ClientIsWebServer		Boolean		True if serving on 4D Client
+	<>A4D_HostAddr				String		IP address of host
+	<>A4D_HostMAC				String		MAC address of host
+	<>A4D_HostPort				String		Port on which web server is listening
+***********************************************************************************/
+
+method "On Application Start"
+	
+	Breadcrumbs.setSeparator("&gt;")
+	
+	// We are using a custom URL factory method
+	rest.init
+	
+	fusebox.setURLFactory("demo.makeUrl")
+	
+end method
+
+
+
+/***********************************************************************************
+	On Request
+	
+	$inURL		Text			->		Path portion of requested URL
+	RESULT		Text | <none>	<-		New URL or nothing
+	
+	This method is executed each time a request is made, before Active4D looks
+	at the request URL. There are three actions you can take:
+	
+		- If you want to change the request URL or query string,
+		  return the new URL and change the _query collection.
+		  The URL must be converted to ISO-8859-1 and URL encoded.
+		  
+		- To make no change, return nothing or an empty string.
+		
+		- To make the request fail, call 'set status code' with a status
+		  other than 200.
+***********************************************************************************/
+
+method "On Request"($inURL)  `--> Text or <none>
+		
+	// Delegate to another library so we can change it easily during runtime
+	return (_active4d.onRequest($inURL))
+	
+end method
+
+
+
+/***********************************************************************************
+	On Authenticate
+	
+	If realms have been defined in Realms.ini, this method is executed
+	before On Session Start and before On Execute Start. Typically you will
+	execute something like the skeleton code below:
+	
+		1. Check the realm to see if it is protected
+		2. If so check the user's authentication credentials
+		3. If the credentials are invalid, call authenticate and include
+		   the page you want to appear if the user cancels authentication,
+		   or include nothing to execute the http error handler.
+***********************************************************************************/
+
+method "On Authenticate"
+
+	_active4d.onAuthenticate
+
+end method
+
+
+
+/***********************************************************************************
+	On Session Start
+	
+	This method is executed each time a request is made that does not have
+	an associated session. If this method is defined, a session will always
+	be created for each new visitor.
+***********************************************************************************/
+
+/*
+method "On Session Start" 
+	
+end method
+*/
+
+
+
+/***********************************************************************************
+	On Execute Start
+	
+	This method is executed just before the actual executable file that
+	was requested.
+***********************************************************************************/
+
+/*
+method "On Execute Start"
+	
+end method
+*/
+
+
+
+/***********************************************************************************
+	On Execute End
+	
+	This method is executed just after the actual executable file that
+	was requested, but only if On Session Start and On Execute Start
+	executed without error.
+***********************************************************************************/
+
+/*
+method "On Execute End"
+	
+end method
+*/
+
+
+
+/***********************************************************************************
+	On Session End
+	
+	This method is executed asynchronously after a session times out or is 
+	abandoned, just before it is deleted.
+***********************************************************************************/
+
+/*
+method "On Session End"
+		
+end method
+*/
+
+
+
+/***********************************************************************************
+	On Application End
+	
+	This method is excecuted once when Active4D's server is shutdown, either because
+	the 4D database is being closed or because Active4D is being restarted.
+	When this method runs the all sessions have been cleared, but the libraries
+	are still available.
+***********************************************************************************/
+
+/*
+method "On Application End"
+	
+end method
+*/
+
+
+end library

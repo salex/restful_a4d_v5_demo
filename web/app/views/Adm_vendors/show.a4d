@@ -1,0 +1,72 @@
+
+<%
+// Make the base query string for the edit links
+$baseQuery := a4d.web.collectionItemsToQuery($attributes; "ftr;ftr_name;pbst")
+
+%>
+<h3>Show Adm_vendor</h3>
+
+	<div class="box dform">
+		<fieldset>
+			<legend>Adm_vendor Information</legend>
+			
+       		
+					<div>
+						<label>Id</label>
+						<%=$adm_vendor{"adm_vendor.id"} %>
+						<br />
+					</div>
+			
+					<div>
+						<label>Name</label>
+						<%=$adm_vendor{"adm_vendor.name"} %>
+						<br />
+					</div>
+			
+					<div>
+						<label>Phone</label>
+						<%=$adm_vendor{"adm_vendor.phone"} %>
+						<br />
+					</div>
+			
+					<div>
+						<label>Contact</label>
+						<%=$adm_vendor{"adm_vendor.contact"} %>
+						<br />
+					</div>
+			
+					<div>
+						<label>Comments</label>
+						<%=$adm_vendor{"adm_vendor.comments"} %>
+						<br />
+					</div>
+			
+					<div>
+						<label>Timestamp</label>
+						<%=$adm_vendor{"adm_vendor.timestamp"} %>
+						<br />
+					</div>
+			
+			
+			<br class="dclear" />
+			<div class="dactions">
+				<strong>Actions: </strong>
+				
+				<a class="dlink-button" href="<%=rest.edit_controller_path("Adm_vendors";$Adm_vendor{"Adm_vendor.id"})%>">Edit</a>
+				
+				
+				<%=delete_link("Adm_vendors";$Adm_vendor{"Adm_vendor.id"}) %>
+				
+				<a class="dlink-button"  href="<%=rest.controller_path("Adm_vendors") %><%=choose($basequery;"?"+$basequery;"")%>">Return to Adm_vendors</a>
+				
+			</div>
+		</fieldset>
+	</div>
+	
+	<script type="text/javascript" charset="utf-8">
+		<%if (collection has($attributes;"bst"))%>
+			rajaxUpdate('Adm_vendors',$('tab').value,<%=$Adm_vendor{"Adm_vendor.id"}%>,'<%=$basequery%>','<%=$attributes{"bst"} %>')
+		<%else%>
+			rajaxUpdate('Adm_vendors',$('tab').value,<%=$Adm_vendor{"Adm_vendor.id"}%>,'<%=$basequery%>')
+		<%end if%>
+	</script>

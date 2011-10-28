@@ -1,0 +1,144 @@
+/*
+  rgen library
+  
+  $Id: library.a4l 3200 2006-05-01 21:50:46Z aparajita $
+*/
+
+library "rgen"
+
+
+  /*
+    library constructor
+  */
+  method "__load__"
+    _load
+  end method
+
+
+  /*
+    library destructor
+  */
+  method "__unload__"
+    _unload
+  end method
+
+  method "_unload"
+    if (collection has(self;"_rgen"))
+      if (is a collection(self{"_rgen"}))
+        deep clear collection(self{"_rgen"})
+      else
+        delete collection item(self;"_rgen")
+      end if
+    end if
+  end method
+
+  method "_load"
+    if (not(collection has(self;"_rgen")))
+      self{"_rgen"} := new collection
+    end if
+  end method
+
+  method "reload"
+    _unload
+    _load
+  end method
+
+  method "dump"
+    a4d.debug.dump collection(self)
+  end method
+
+  method "get"
+    return(self{"_rest"})
+  end method
+
+
+  method "init"($attributes)
+    global( $rest)
+    //$rest := rest.get
+    reload
+    $model := $attributes{"model"}
+    self{"_rgen"}{"model"} := capitalize($model)
+    self{"_rgen"}{"controller"} := $rest{"models"}{$model}{"controller"}
+    self{"_rgen"}{"related"} := $rest{"models"}{$model}{"relations"}
+    self{"_rgen"}{"table"} := $rest{"models"}{$model}{"table"}
+    /*model_hidden_tag generates a hidden tag for the model id that won't conflict with instance id*/
+    self{"_rgen"}{"model_hidden_tag"} := '<esc>=html.hidden_field_tag("$model'+'_id";$attributes{"id"}) </esc>'
+    self{"_rgen"}{"hasIncludes"} := false
+    self{"_rgen"}{"hasOne"} := false
+    self{"_rgen"}{"hasMany"} := false
+    self{"_rgen"}{"belongs_to"} := false
+    self{"_rgen"}{"hasMandatory"} := false
+    _add_buttons("main";$attributes)
+    if ($attributes{"includes"})
+      //$rgen{"hasOne"} := new collection
+      //$rgen{"hasMany"} := new collection
+      self{"_rgen"}{"hasIncludes"} := true
+      split string($attributes{"includes"};";";$other_models)
+      copy array($other_models;self{"_rgen"}{"other_models"})
+      for each ($other_models; $imodel; $index)
+        self{"_rgen"}{$imodel} := copy collection($rest{"models"}{$imodel})
+        if ("has_many" ~ self{"_rgen"}{"related"}{$imodel}{"relation"})
+          self{"_rgen"}{$imodel}{"other_many"} := _other_many($imodel)
+          if (self{"_rgen"}{$imodel}{"delete"})
+            self{"_rgen"}{$imodel}{"delete_many"} := true //delete_many($model;$imodel)
+          end if
+          self{"_rgen"}{"hasMany"} := true
+        else
+      
+        end if
+      end for each
+    end if
+
+  end method
+
+  method "_other_many"($omodel)
+
+    $result := """
+    :($action = "_<ocontroller>")
+      $<ocontroller> := <model>.find_related("<omodel>";$attributes)
+      include("../views/<controller>/_<ocontroller>.a4d")
+    """
+    $result := replace string($result;"<ocontroller>";self{"_rgen"}{$omodel}{"controller"})
+    $result := replace string($result;"<omodel>";capitalize($omodel))
+    $result := replace string($result;"<controller>";self{"_rgen"}{"controller"})
+    $result := replace string($result;"<model>";self{"_rgen"}{"model"})
+    return($result)
+  end method
+
+  method "_add_buttons"($to;$attr)
+    split string("add|show|edit|delete";"|";$buttons)
+    $attr_prefix := choose($to = "main";$to ; $to + "_inc")
+    for each ($buttons; $button; $index)
+      if ($attr{$attr_prefix}+"_"+$button)
+        case of
+          :($button = "show")
+            if ($to = "main")
+              self{"_rgen"}{$button} := html.link_to(capitalize($button);rest.controller_path(self{"_rgen"}{"controller"});html.opt(:class => "add-button"))
+            else
+              self{"_rgen"}{$to}{$button} := html.link_to(capitalize($button);rest.controller_path(self{"_rgen"}{$to}{"controller"});html.opt(:class => "add-button"))
+            end if
+          :($button = "add")
+            if ($to = "main")
+              self{"_rgen"}{$button} := html.link_to(capitalize($button);rest.new_controller_path(self{"_rgen"}{"controller"});html.opt(:class => "add-button"))
+            else
+              self{"_rgen"}{$to}{$button} := html.link_to(capitalize($button);rest.new_controller_path(self{"_rgen"}{$to}{"controller"});html.opt(:class => "add-button"))
+            end if
+            
+        end case
+        if($to = "main")
+          self{"_rgen"}{$button} := html.link_to(capitalize($button);rest.new_controller_path(self{"_rgen"}{"controller"});html.opt(:class => "add-button"))
+        
+        
+      end if
+      
+    end for each
+    if($to = "main")
+      if($attr{"main_add"})
+      end if
+    else
+    end if
+    $attr_pefix := choose(; $to; $to+"_inc")
+  end method
+
+end library
+

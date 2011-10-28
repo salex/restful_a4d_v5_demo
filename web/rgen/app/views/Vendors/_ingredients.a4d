@@ -1,0 +1,40 @@
+<%
+$row := $ingredients->getRow
+$alt := true
+%>
+
+
+
+<table cellspacing="0">
+	<tr class="column-heads">
+		
+			<td>Name</td>
+			<td>Ship Qty</td>
+			<td>Price</td>
+			<td>Vendor Id</td>
+
+		<td>Actions
+		
+		</td>
+	</tr>
+
+<%
+	while ($ingredients->next)
+		$alt := not($alt)
+		$rowClass := choose($alt; "alt"; "")
+		%>
+		<tr class="<%$rowClass%>">
+			
+				<td><%=$row{"ingredient.name"}%></td>
+				<td><%=$row{"ingredient.ship_qty"}%></td>
+				<td><%=$row{"ingredient.price"}%></td>
+				<td><%=$row{"ingredient.vendor_id"}%></td>
+
+			<td>
+				
+				
+				
+			</td>
+		</tr>
+	<%end while%>
+</table>

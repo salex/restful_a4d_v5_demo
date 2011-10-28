@@ -1,0 +1,380 @@
+/*
+	Active4D private -- DO NOT EDIT!
+	
+	Copyright (c) 2006-2009 Aparajita Fishman, All Rights Reserved
+*/
+
+library "a4d.console"
+
+
+/**********************************************************************************
+	dump array
+
+	$inArray			->	Array		Array to display
+	$inDisplayInline	->	Boolean		True to display array contents in 1 cell
+	$inName				->	Text		If empty, variable referred to by $inArray
+										is used, else this name
+
+	Note that we pass $inArray by reference. This allows us to access $inArray
+	as if it were a pointer to an array, but without having to dereference.
+**********************************************************************************/
+
+method "dump array"(&$inArray; $inDisplayInline = false; $inName = "")
+	
+	c_boolean($isText)
+	$isText := (type($inArray) = Text array) | (type($inArray) = String array)
+	
+	if (not($inName))
+		$inName := variable name($inArray)
+	end if
+	
+	if ($inName)
+		$inName := ": " + $inName
+	end if
+	
+	$divider := ("-" * 50)
+	write to console("{0}\r{2}{1}\r{0}" %% ($divider; $inName; type descriptor($inArray)))
+	
+	if ($inDisplayInline)
+		write to console(_joinArray($inArray))
+
+  	else		
+		c_longint($i; $type)
+		$type := type($inArray)
+		
+		for ($i; 0; size of array($inArray))
+			case of
+				:($type = Text array) | ($type = String array)
+					$value := replace string($inArray{$i}; "\n"; "\\n")
+					$value := replace string($value; "\r"; "\\r")
+					$value := replace string($value; "\t"; "\\t")
+					$value := "{0} ({1,number,#############0})" %% (enclose($value); length($inArray{$i}))
+					
+				:($type = Pointer array)
+					$value := a4d.utils.getPointerReferent($inArray{$i})
+					
+				:($type = Picture array)
+					$value := a4d.utils.getPictureDescriptor($inArray{$i})
+			else
+				$value := $inArray{$i}
+			end case
+			
+			write to console("[{0,number,#########0}] {1}" %% ($i; $value))
+		end for
+	end if
+	
+	write to console($divider + "\r")
+	
+end method
+
+
+
+/**********************************************************************************
+	_joinArray [private]
+**********************************************************************************/
+
+method "_joinArray"(&$inArray)
+	
+	c_longint($i; $type)
+	$type := type($inArray)
+	$joined := ""
+	
+	for ($i; 0; size of array($inArray))
+		if ($type = Text array) | ($type = String array)
+			$value := replace string($inArray{$i}; "\n"; "\\n")
+			$value := replace string($value; "\r"; "\\r")
+			$value := replace string($value; "\t"; "\\t")
+			$value := enclose($value)
+		else
+			$value := string($inArray{$i})
+		end if
+		
+		$joined := concat(", "; $joined; $value)
+	end for
+	
+	return ($joined)
+	
+end method
+
+
+
+/**********************************************************************************
+	dump collection
+	
+	$inReference	->	Collection | Iterator	Iterator to the collection to display
+	$inName			->	String					Name of the dumped entity
+	$inShowType		-> 	Boolean					True to show the value's type
+	
+	Creates a formatted dump of a collection.
+**********************************************************************************/
+
+method "dump collection"(&$inReference; $inName = ""; $inShowType = false; $inLevel = 0)
+	
+	++$inLevel
+	c_longint($it)
+	
+	case of
+		: (is an iterator($inReference))
+			$it := $inReference
+	
+		: (is a collection($inReference))
+			$it := collection($inReference)
+	else
+		write to console(">>>\rThe collection reference passed in is neither an iterator nor a collection handle.\r<<<")
+		return
+	end case
+	
+	if (not($inName))
+		$inName := variable name($inReference)
+		
+		if (not($inName))
+			$inName := "<no name>"
+		end if
+	end if
+	
+	$divider := ("-" * 50)
+	$indent  := (">" * $inLevel)
+	$header  := "{0}{1}\r{0} {2}\r{0}{1}" %% ($indent; $divider; $inName)
+	write to console($header)
+	_writeCollectionItems($it; true; $inShowType; ""; $inLevel)
+	write to console(("<" * $inLevel) + $divider + "\r")
+	
+end method
+
+
+
+/**********************************************************************************
+	_writeCollectionItems [private]
+	
+	$inIterator		->	Iterator	Iterator for the collection to display
+	$inShowHeader	->	Boolean		True to display column headers
+	$inShowType		-> 	Boolean		True to show the value's type
+	$inFilter		->	Text		Items matching this regexp are hidden
+	$inLevel		->	Number		Recursion level
+**********************************************************************************/
+
+method "_writeCollectionItems"($inIterator; $inShowHeader = true; $inShowType = false; $inFilter = ""; $inLevel = 1)
+	
+	array text($keys; 0)
+	get collection keys($inIterator; $keys)
+	sort array($keys)
+	
+	c_longint($type)
+	c_text($valueStr)
+	c_text($key)
+	
+	if (count collection items($inIterator) = 0)
+		write to console("[Empty collection]")
+		return
+	end if
+	
+	if ($inShowType)
+		$format := "{0} [{1}]: {2}"
+	else
+		$format := "{0}: {2}"
+	end if
+	
+	while (more items($inIterator))
+		$key := get item key($inIterator)
+		
+		if ($inFilter)
+			if ($key =~ $inFilter)
+				next item($inIterator)
+				continue
+			end if
+		end if
+		
+		$type := get item type($inIterator)
+		
+		if (not(is array($type)))
+			$value := $inIterator{$key}
+		end if
+		
+		$valueStr := ""
+		$typeStr := ""
+		$valueIsCollection := false
+				
+		case of
+			:(is array($type))
+				c_longint($arrayVal)
+				$arrayVal := $inIterator{$key}
+				$valueStr := "[{0}] '{'{1}'}'"	%% ($arrayVal; _joinArray($inIterator{$key}))
+								
+			:($type = Is Text)
+				$valueStr := enclose($value)
+				
+			:($type = Is Date)
+				$valueStr := string($value; Abbr Month Day)
+				
+			:($type = Is Picture)
+				$valueStr := a4d.utils.getPictureDescriptor($value)
+				
+			:($type = Is BLOB)
+				$valueStr := string(blob size($value)) + " bytes"
+				
+			:($type = Is Pointer)
+				$valueStr := a4d.utils.getPointerReferent($value)
+				
+			:($type = Is Real) | ($type = Is LongInt)
+				$valueIsCollection := is a collection($value)
+		end case
+		
+		if ($inShowType)
+			case of
+				:(is array($type))
+					$typeStr := type descriptor($inIterator{$key})
+					
+				:($valueIsCollection)
+					$typeStr := "Collection"
+			else
+				$typeStr := type descriptor($value)
+			end case
+		end if
+				
+		if ($valueIsCollection)
+			$valueStr := ""
+		else
+			if (not(is array($type)) & (length($valueStr) = 0))
+				$valueStr := string($value)
+			end if
+		end if
+		
+		write to console($format %% ((" " * $inLevel) + $key; $typeStr; $valueStr))
+		
+		if ($valueIsCollection)
+			a4d.console.dump collection($value; $key; $inShowType; $inLevel)
+		end if
+		
+		next item($inIterator)
+	end while
+	
+end method
+
+
+
+/**********************************************************************************
+	dump session
+	
+	Dumps the contents of the current session in an easy to read format.
+***********************************************************************************/
+
+method "dump session"
+	
+	if (session internal id = 0)
+		write to console("There is no current session.")
+	else
+		$timeout := get session timeout
+		
+		if ($timeout < 1)
+			$timeout := "{0,number,#########0} seconds" %% ($timeout * 60)
+		else
+			$timeout := "{0,number,#########0} minutes" %% $timeout
+		end if
+		
+		a4d.console.dump collection(session; "Session [{0,number,#########0}/{0,number,#########0}]\r> Timeout: {1}" %% (session internal id; session id; $timeout); true)
+	end if
+	
+end method
+
+
+
+/***********************************************************************************
+	dump request info
+	
+	Dumps the contents of the request info collection in an easy to read format.
+***********************************************************************************/
+
+method "dump request info"
+	
+	a4d.console.dump collection(request info; "Request Info"; false)
+	
+end method
+
+
+
+/***********************************************************************************
+	dump query params
+	
+	Dumps the contents of the query params collection in an easy to read format.
+***********************************************************************************/
+
+method "dump query params"
+	
+	a4d.console.dump collection(_query; "Query Params"; true)
+	
+end method
+
+
+
+/***********************************************************************************
+	dump form variables
+	
+	Dumps the contents of the form variables collection in an easy to read format.
+***********************************************************************************/
+
+method "dump form variables"
+	
+	a4d.console.dump collection(_form; "Form Variables"; true)
+	
+end method
+
+
+
+/***********************************************************************************
+	dump license info
+	
+	Dumps license info in an easy to read format.
+***********************************************************************************/
+
+method "dump license info"
+	
+	$divider := ("-" * 50)
+	write to console("\r{0}\r License Info\r{0}" %% ($divider))
+
+	c_text($user; $company; $version; $ip; $timeRemaining; $path)
+	c_longint($license; $platform; $seconds)
+	get license info($user; $company; $license; $version; $ip; $exp; $platform; $path)
+	$seconds := get time remaining
+
+	case of
+		:($seconds > 0)
+			c_time($time)
+			$time := $seconds
+			$timeRemaining := string($time)
+
+		:($seconds = 0)
+			$timeRemaining := "Unlimited"
+
+		:($seconds < 0)
+			$timeRemaining := "Expired"
+	end case
+
+	$licenseType := a4d.lists.getAt("Trial,Developer,Deployment,OEM,Special,Expired,ScriptTools"; $license + 1)
+	$exp := string($exp; Abbr Month Day)
+	
+	write to console(" License type:%|21t|%s" % ($licenseType))
+	
+	if ($license # 0)  // trial
+		write to console(" Username:%|21t|%s" % ($user))
+		write to console(" Company:%|21t|%s" % ($company))
+		write to console(" Version:%|21t|%s" % ($version))
+	end if
+	
+	if ($license = A4D License Type Deployment)
+		write to console(" Key IP address:%|21t|%s" % ($ip))
+		write to console(" Server IP address:%|21t|%s" % (<>A4D_HostAddr))
+		write to console(" Expiration date:%|21t|%s" % ($exp))
+	end if
+
+	write to console(" Time remaining:%|21t|%s" % ($timeRemaining))
+
+	if ($license # 0)  // trial
+		write to console(" Key file path:%|21t|%s" % ($path))
+	end if
+	
+	write to console($divider + "\r")
+	
+end method
+
+
+end library

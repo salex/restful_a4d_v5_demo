@@ -1,0 +1,49 @@
+<%$bq := $filterQuery+"pbst"%>
+<esc>
+  // Make the base query string for the edit links
+  $baseQuery := a4d.web.collectionItemsToQuery($attributes; "<%=$bq%>")
+  $batch := $<%=$controller%>{"batch"}
+</esc>
+
+<fieldset class="index-list">
+  <legend><%= rgen{"plural_table_name"} %>
+  <span class="actions">
+    <esc>= link_to 'New <%= rgen{"human_name"} %>', new_<%= rgen{"singular_table_name"} %>_path </esc>
+  </span>
+  </legend>
+
+  <table>
+    <tr class="list-header">
+    <% for each (rgen{"attributes"};$attribute) %>
+      <th><%= $attribute{"human_name"} %></th>
+    <% end %>
+      <th>Actions</th>
+    </tr>
+
+    <esc>
+      $row := $<%=$controller%>->getRow</esc>
+      $alt := true
+    </esc>
+    <esc>while ($<%=$controller%>->next)</esc>
+      <esc>
+        $alt := not($alt)
+        $rowClass := choose($alt; "alt"; "")
+        $query := build query string(""; "id"; $row{"<%=$model%>.id"})
+      </esc>
+      <tr class="<esc>=$rowClass</esc>">
+      <esc>
+        <td>
+        </td>
+      </esc>
+        <td>
+          <esc>=html.link_to("Shoe";rest.controller_path("<%=$controller%>";$row{"<%=$model%>.id"};$baseQuery);html.opt(:class => "show-button"))</esc>
+          <esc>=html.link_to("Edit";rest.controller_edit_path("<%=$controller%>";$row{"<%=$model%>.id"};$baseQuery);html.opt(:class => "edit-button"))</esc>
+          <esc>=delete_link("<%=$controller%>";$row{"<%=$model%>.id"})</esc>
+        </td>
+      </tr>
+    <esc> end while </esc>
+  </table>
+  <esc>=rest.utils.makeBatchDiv($batch;"<%=$filterQuery%>";$attributes)</esc>
+  
+</fieldset>
+

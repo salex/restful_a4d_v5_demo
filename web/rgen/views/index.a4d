@@ -1,0 +1,46 @@
+<h3>
+	Please select the Model/Controller and any related models that you wish to include to generate a scaffold application.
+</h3>
+<form class="dtable" action="<%=rest.action_controller_path("rgen/select") %>" method="post" >
+	<table>
+		<tr class="column-heads">
+			<td>Model</td>
+			<td>Controller</td>
+			<td>Related Models</td>
+			<td>Relation</td>
+			<td>Key/Association</td>
+		</tr>
+		<%for each ($rest{"controllers"}; $key; $value)%>
+			<tr>
+				<td>
+					<%=html.radio_button_tag("model";$value;html.opt(':id => :$value'))%>
+					<%=$value%>
+				</td>
+				<td><%=$key%></td>
+				
+				<%
+					if (collection has($rest{"models"}{$value};"relations"))
+						$cnt := count collection items($rest{"models"}{$value}{"relations"})
+					else
+						write("<td></td><td></td><td></td>")
+					end if
+					$i := 0
+					for each ($rest{"models"}{$value}{"relations"}; $model; $relation)%>
+					<td><%
+					    if ($model # "polymorphic")
+					       write( html.check_box_tag("include_"+$value;$model))
+					    end if%>
+						<%=$model%></td>
+						<td><%=$relation{"relation"} %></td>
+						<td><%=$relation{"fkey"} %></td>
+				<%
+					$i++
+					if ($i < $cnt)
+						write('</tr><tr><td colspan="2">')
+					end if
+					end for each%>
+ 			</tr>
+		<%end for each%>
+	</table>
+	<input type="submit" value="Submit" />
+</form>

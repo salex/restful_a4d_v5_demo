@@ -1,0 +1,699 @@
+/*
+	Active4D private -- DO NOT EDIT!
+	
+	Copyright (c) 2003-2009 Aparajita Fishman, All Rights Reserved
+*/
+
+library "fusebox"
+
+
+// import the fuseaction library to preload the fusebox.conf.fuseaction library constant
+
+import("fusebox.conf")
+	
+
+/*
+	PUBLIC METHODS
+*/
+
+
+/************************************************************************************************
+	core
+	
+	Purpose:	This method is the Active4D equivalent of the Fusebox core file.
+				It is a method so that it doesn't have to be loaded with every page hit.
+				You should never have to call this yourself, it is called by the special
+				Fusebox index.a4d file or by sendFuseaction.
+	Require:	$inRootPath must be a full Unix path to the directory of the web root.
+				If called directly by another method, $ioAttributes{fusebox.conf.fuseaction} must
+				contain the fuseaction to run. Also, $fbx_self must have been declared
+				at the global level and set to the name of the invoking web page, usually
+				"index.a4d".
+	Promise:	The requested fuseaction will be run.
+	Errors:		Throws an informative error if required Fusebox files are missing.
+	
+	Parameters:
+	$inRootPath		->	Text		Path to the directory of index.a4d.
+	$ioAttributes	<->	Collection	The request context.
+	$inNestedCall	->	Boolean		True if called from sendFuseaction.
+************************************************************************************************/
+
+method "core"($inRootPath; $ioAttributes = 0; $inNestedCall = false)
+
+	global($fbx_self)	
+	c_longint($attributes)
+	$attributes := $ioAttributes
+	
+	/*
+		This method is broken into twelve sections.
+		
+		1.	Section One is the Fusedoc for the file.
+		2	Section Two contains the public "API-style" variables that are used 
+			in the Fusebox framework.
+		3.	Section Three in the ColdFusion implementation establishes the 
+			private structure "FB_", in this implementation it is empty.
+		4.	Section Four merges query params and form variables into the $attributes collection
+			if it has not been passed in.
+		5.	Section Five includes the fbx_circuits.a4d file.
+		6.	Section Six creates a mirror of the fusebox.circuits strucure for reverse look-ups.
+		7.	Section Seven includes the root fbx_settings.a4d file.
+		8.	Section Eight massages $attributes{"fuseaction"} and begins the aliased lookup process.
+		9.	Section Nine includes nested fbx_settings.a4d files top-to-bottom.
+		10.	Section Ten includes the target circuit fbx_switch.a4d file, which processes 
+			the requested fuseaction.
+		11.	Section Eleven includes any layout files, in bottom-to-top order to allow layouts 
+			to be nested. It also outputs the final display of the page.
+	*/
+	
+	
+	/*
+		SECTION ONE
+	
+		For more information about Fusedocs and how to read them, visit fusebox.org and halhelms.com.
+	
+		<fusedoc fuse="fusebox.core">
+			<responsibilities>
+				This is the Active4D version of the Fusebox core file.
+				I am the code behind Fusebox 3.0 that handles nesting, layouts -- oh, a bunch of stuff, really. PLEASE BE VERY CAREFUL ABOUT MAKING ANY CHANGES TO THIS FILE, AS IT WILL RENDER IT NON-COMPLIANT WITH THE STANDARD NOTED ABOVE. There is no need to modify this file for any settings. All settings can occur in fbx_settings.a4d.
+			</responsibilities>
+			<properties>
+				<property name="version" value="3.0" />
+				<property name="build" value="2c" />
+				<history author="John Quarto-vonTivadar" date="27 Sep 2001" email="jcq@mindspring.com">Portions of code contributed by Steve Nelson, Hal Helms, Jeff Peters, Nat Papovich, Patrick McElhaney, Fred Sanders and Stan Cox.</history>
+				<history author="Nat Papovich" date="01 Oct 2001" email="mcnattyp@yahoo.com" type="Update" />
+				<history author="Aparajita Fishman" date="12 March 2003" email="aparajita@aparajitaworld.com" type="Update">Created this method for Active4D versions 3.0.0 and up.</history>
+				<history author="Aparajita Fishman" date="16 July 2003" email="aparajita@aparajitaworld.com" type="Update">Switched back to using 'include into' instead of 'save output'.</history>
+				<history author="Aparajita Fishman" date="01 October 2003" email="aparajita@aparajitaworld.com" type="Update">Major overhaul/optimization, bug fixes.</history>
+				<history author="Aparajita Fishman" date="07 October 2003" email="aparajita@aparajitaworld.com" type="Update">Using interpolated strings.</history>
+			</properties>
+			<io>
+				<out>
+					<collection name="$fusebox">
+						<boolean name="isCustomTag" default="False" />
+						<boolean name="isHomeCircuit" default="False" />
+						<boolean name="isTargetCircuit" default="False" />
+						<string name="fuseaction" default="" comments="Will be assigned a literal value of 'fusebox.defaultfuseaction if $attributes{'fuseaction'} comes in as 'circuit.' with no fuseaction passed." />
+						<string name="circuit" default="" />
+						<string name="homeCircuit" default="" />
+						<string name="targetCircuit" default="" />
+						<string name="thisCircuit" default="" />
+						<string name="thisLayoutPath" default="" />
+						<boolean name="suppressErrors" default="False" />
+						<string name="currentPath" default="" />
+						<string name="rootPath" />
+						<boolean name="fqfa" comments="Active4D extension" />
+						<boolean name="isNestedCall" default="False" comments="Active4D extension" />
+						<string name="__class__" comments="Active4D extension" />
+						<string name="appPath" comments="Active4D extension" />
+						<string name="self" comments="Active4D extension" />
+						<boolean name="nestLayouts" comments="Active4D extension" />
+						<name="$fbx_*" comments="Internal use only. Please treat any $fbx_* variables as reserved, not to be touched.">
+					</collection>
+				</out>
+			</io>
+		</fusedoc> 
+	*/
+	
+	
+	/*
+	
+		SECTION TWO
+		
+		The $fusebox collection below is a collection encompassing the public Fusebox API. 
+		We recommend making no changes to this collection as it will render your application 
+		non-compliant to the Fusebox 3.0 standard.
+		
+		$fusebox{"isCustomTag"}:
+		Not used in this implementation, see $fusebox{"isNestedCall"}.
+			
+		$fusebox{"isHomeCircuit"}:
+		This boolean variable is changed as the Fusebox framework traverses down the circuit
+		hierarchy, pulling in fbx_settings.a4d files and the fbx_switch.a4d file, and then up
+		the hierarchy, pulling in fbx_layouts.a4d files and the specified layout files. 
+		It is True only at the beginning and the end of the entire traversal.
+
+		$fusebox{"isTargetCircuit"}:
+		This boolean variable is changed as the Fusebox framework traverses down and then up the 
+		circuit hierarchy. It is True only when the currently accessed circuit is the target 
+		circuit as specified by $attributes{fusebox.conf.fuseaction}.
+
+		$fusebox{"circuit"}:
+		This is the first part of the compound fuseaction that gets passed as
+		$attributes{fusebox.conf.fuseaction}.
+
+		$fusebox{"fuseaction"}:
+		This is the second part of a compound fuseaction that gets passed as 
+		$attributes{fusebox.conf.fuseaction}.
+
+		$fusebox{"homeCircuit"}:
+		This variable is set to the root-level circuit as defined in $fusebox{"circuits"} strucure.
+
+		$fusebox{"targetCircuit"}:
+		This is the circuit in which the fuseaction is requested to run. If the requested circuit
+		is found in fbx_circuits.a4d, $fusebox{"targetCircuit"} and $fusebox{"circuit"} 
+		will be the same.
+
+		$fusebox{"thisCircuit"}:
+		This variable is changed as the Fusebox framework traverses down and then up the 
+		circuit hierarchy. It reflects the current circuit that is being accessed during the
+		traversal.
+
+		$fusebox{"thisLayoutPath"}:
+		This is the web root-relative directory path to the layout file for the current circuit. 
+		This variable changes as the Fusebox framework traverses up from the target circuit
+		to the home circuit.
+
+		$fusebox{"suppressErrors"}:
+		A boolean variable, which indicates whether Fusebox framework errors are suppressed when
+		the Fusebox framework encounters an error condition. It defaults to False, which means
+		that native Active4D errors will be displayed if a Fusebox framework error occurs.
+		If True, Fusebox framework errors will result in an informative error message that gives
+		you a good idea of what went wrong.
+		
+		Set this to True in a production enviroment, since at that point errors that occur will 
+		not be Fusebox framework errors but errors in your fuseactions and fuses.
+
+		$fusebox{"circuits"}:
+		This variable is a collection formed by the circuit alias -> directory mapping defined
+		in fbx_circuits.a4d.
+
+		$fusebox{"currentPath"}:
+		This variable is set to the relative path from the root circuit to the current circuit.
+		As the Fusebox framework traverses down and then up the circuit hierarchy, this variable
+		is changed accordingly. 
+
+		$fusebox{"rootPath"}:
+		This variable is set to the relative path from the current circuit's directory to the
+		web root directory.
+
+		$fusebox{"layout"}:
+		This variable holds the output from display fuses for display within layouts.
+
+		
+		// WARNING: These are Active4D extensions to the Fusebox standard
+		
+		$fusebox{"__class__"}:
+		This variable contains the name of this library, which allows methods to be called
+		from the $fusebox instance with the syntax $fusebox->sendFuseaction().
+		
+		$fusebox{"fqfa"}:
+		This variable is set to the fully qualified fuseaction (circuit.fuseaction).
+		
+		$fusebox{"isNestedCall"}:
+		This boolean variable is set to true when the core is called by sendFuseaction().
+		
+		$fusebox{"nestLayouts"}:
+		Some circuits may want to prevent their layout from being nested. By setting this
+		boolean variable to false after setting their layout in fbx_layouts.a4d, a circuit
+		can prevent parent circuits from nesting.
+			
+		$fusebox{"appPath"}:
+		This variable contains the full Unix path to the root circuit of the application. 
+		This is needed when calling the core directly.
+		
+		$fusebox{"self"}:
+		This variable contains the name of the single point of entry into fusebox, 
+		usually "index.a4d".
+	*/
+	
+	
+	$fusebox := new collection("__class__"; current library name;	\\
+							   "isNestedCall"; $inNestedCall;		\\
+							   "isHomeCircuit"; false;				\\
+							   "isTargetCircuit"; false;			\\
+							   "fuseaction"; "";					\\
+							   "circuit"; "";						\\
+							   "homeCircuit"; "";					\\
+							   "targetCircuit"; "";					\\
+							   "thisCircuit"; "";					\\
+							   "thisLayoutPath"; "";				\\
+							   "suppressErrors"; false;				\\
+							   "circuits"; new collection;			\\
+							   "currentPath"; "";					\\
+							   "rootPath"; "";						\\
+							   "layout"; "";						\\
+							   "nestLayouts"; true;					\\
+							   "self"; $fbx_self;					\\
+							   "fqfa"; "";							\\
+							   "appPath"; $inRootPath)
+	
+	// Reserve an item in _request for fusebox.head items
+	_request{"__fusebox.head__"} := 0
+	
+	
+	/*
+		SECTION THREE
+		
+		NOTE: This section is not used in my implementation
+		
+		$FB_ is a collection encompassing "private" variables used by 
+		the underlying Fusebox framework. Make no changes to it without a full 
+		understanding of the ramifications of those changes. 
+	*/
+	
+	// $FB_ := new collection
+	
+	
+	/*
+		SECTION FOUR
+		
+		This code copies all incoming POST and GET variables to a collection called 
+		$attributes. If a form was posted, form variables take precedence over query 
+		params so that form variables cannot be spoofed by adding them to the URL.
+	*/
+	
+	if (not(is a collection($attributes)))
+		if (request info{"*request method"} = "POST")
+			$attributes := merge collections(query params; form variables) // POST overwrites GET
+		else
+			$attributes := merge collections(form variables; query params) // GET overwrites POST
+		end if
+	end if
+	
+	
+	/*
+		SECTION FIVE
+		
+		Attempt to include the fbx_circuits.a4d file, which should be in the same 
+		directory as $inRootPath.
+	*/
+	
+	if (not(file exists(join paths($inRootPath; "fbx_circuits.a4d"))))
+		if (not($fusebox{"suppressErrors"}))
+			throw("Fusebox core: could not find the file: " + join paths($inRootPath; "fbx_circuits.a4d"))
+		end if
+	end if
+	
+	// We need to calculate the current root of this fusebox instance for including root-level fuses
+	$root := substring($fusebox{"appPath"}; length(get root))
+	include(join paths($root; "fbx_circuits.a4d"))
+	
+	/*
+		SECTION SIX
+		
+		Create a reverse path look-up of the $fusebox{"circuits"} collection which 
+		can be used later to conveniently look up the circuit alias of whichever 
+		circuit is being accessed at that moment, particularly when determining $fusebox{"thisCircuit"}. 
+	*/
+	
+	if (count collection items($fusebox{"circuits"}) = 0)
+		if (not($fusebox{"suppressErrors"}))
+			throw("Fusebox core: The <strong>circuits</strong> collection is empty. It must be filled in the Fusebox application's root fbx_circuits.a4d file.")
+		end if
+	end if
+	
+	c_longint($fbx_reverseCircuitPath)
+	$fbx_reverseCircuitPath := new collection
+	c_text($fbx_circuitName)
+	c_text($fbx_circuitDefinition)
+	
+	for each ($fusebox{"circuits"}; $fbx_circuitName; $fbx_circuitDefinition)
+		$fbx_reverseCircuitPath{$fbx_circuitDefinition} := $fbx_circuitName
+		
+		if ("/" !~ $fusebox{"circuits"}{$fbx_circuitName})
+			$fusebox{"homeCircuit"} := $fbx_circuitName
+			$fusebox{"isHomeCircuit"} := true
+		end if
+	end for each
+	
+	
+	/*
+		SECTION SEVEN
+		
+		Attempt to include the fbx_settings.a4d file from the home circuit.
+	*/
+	
+	// We are starting from the home (root) circuit
+	$fusebox{"thisCircuit"} := $fusebox{"homeCircuit"}
+	
+	if (not(file exists(join paths($inRootPath; "fbx_settings.a4d"))))
+		if (not($fusebox{"suppressErrors"}))
+			throw("Fusebox core: could not find the file: " + join paths($inRootPath; "fbx_settings.a4d"))
+		end if
+	end if
+	
+	// Give fqfa the default value
+	$fusebox{"fqfa"} := $attributes{fusebox.conf.fuseaction}
+	include(join paths($root; "fbx_settings.a4d"))
+	
+	
+	/*
+		SECTION EIGHT
+		
+		Dissect $attributes{fusebox.conf.fuseaction} into a circuit and fuseaction. If 
+		$attributes{"fuseaction"} is not a compound fuseaction (i.e. it only includes the 
+		circuit name), then set the fuseaction as blank, which the target 
+		circuit's default in the case statement will pick up. Then look up the target 
+		circuit in the $fusebox{"circuit"} structure for the full path to the circuit.
+	*/
+	
+	if (not(collection has($attributes; fusebox.conf.fuseaction)))
+		if (not($fusebox{"suppressErrors"}))
+			throw('Fusebox core: \$attributes{"`fusebox.conf.fuseaction`"} is not available.')
+		end if
+	end if
+	
+	array text($fbx_textArray; 0)
+	$fbx_long := split string($attributes{fusebox.conf.fuseaction}; "."; $fbx_textArray)
+	
+	if ($fbx_long = 1)
+		$fusebox{"fuseaction"} := "fusebox.defaultFuseaction"
+	else
+		$fusebox{"fuseaction"} := $fbx_textArray{2}
+	end if
+	
+	$fusebox{"circuit"} := $fbx_textArray{1}
+	$fusebox{"fqfa"} := '$fusebox{"circuit"}.$fusebox{"fuseaction"}'
+	
+	if (not(collection has($fusebox{"circuits"}; $fusebox{"circuit"})))
+		if (not($fusebox{"suppressErrors"}))
+			throw('Fusebox core: could not find the circuit you requested: $fusebox{"circuit"}')
+		end if
+	end if
+	
+	$fusebox{"targetCircuit"} := $fusebox{"circuit"}
+	
+	
+	/*
+		SECTION NINE
+		
+		Traverse down the circuit hierarchy from the root to the target circuit, attempting
+		to include any nested fbx_settings.a4d files. If a fbx_settings.a4d file or 
+		directory alias cannot be found, continue on.
+	*/
+	
+	array text($fbx_textArray; 0)
+	$fbx_size := split string($fusebox{"circuits"}{$fusebox{"targetCircuit"}}; "/"; $fbx_textArray)
+	
+	c_text($fbx_curPath)
+	$fbx_curPath := ""
+	
+	if (size of array($fbx_textArray) > 1)
+		c_longint($fbx_i)
+		c_text($fbx_homePath)
+		$fbx_homePath := $fusebox{"circuits"}{$fusebox{"homeCircuit"}}
+		$fusebox{"isHomeCircuit"} := false
+		
+		for ($fbx_i; 2; $fbx_size)
+			// Append the next directory in the path from home to target circuit
+			$fbx_curPath := join paths($fbx_curPath; $fbx_textArray{$fbx_i})
+			
+			$fusebox{"currentPath"} := $fbx_curPath + "/"
+			$fusebox{"rootPath"} := "../" * ($fbx_i - 1)
+			$fbx_circuitName := $fbx_reverseCircuitPath{join paths($fbx_homePath; $fbx_curPath)}
+			
+			if ($fbx_circuitName)
+				$fusebox{"thisCircuit"} := $fbx_circuitName
+				$fusebox{"isTargetCircuit"} := $fbx_circuitName = $fusebox{"targetCircuit"}
+			end if
+			
+			if (file exists(join paths($inRootPath; $fbx_curPath; "fbx_settings.a4d")))
+				include(join paths($root; $fbx_curPath; "fbx_settings.a4d"))
+			end if
+		end for
+	end if
+	
+	
+	/*
+		SECTION TEN
+		
+		Now include the fbx_switch.a4d in the target circuit, executing 
+		$fusebox{fusebox.conf.fuseaction}. Store the contents of the output into a variable called 
+		$fusebox{"layout"}.
+	*/
+	
+	$fusebox{"thisCircuit"} := $fusebox{"targetCircuit"}
+	$fusebox{"isTargetCircuit"} := true
+	
+	// If the target circuit is NOT the home circuit, $fbx_curPath # ""
+	if ($fbx_curPath)
+		$fusebox{"isHomeCircuit"} := false
+	else
+		$fusebox{"isHomeCircuit"} := true
+	end if
+	
+	if (not(file exists(join paths($inRootPath; $fbx_curPath; "fbx_switch.a4d"))))
+		if (not($fusebox{"suppressErrors"}))
+			throw('Fusebox core: could not find the file "`join paths(get root; $fbx_curPath; "fbx_switch.a4d")`" in the circuit "$fusebox{"thisCircuit"}"')
+		end if
+	end if
+	
+	include into(join paths($root; $fbx_curPath; "fbx_switch.a4d"); $fusebox{"layout"})
+	
+	
+	/*
+		SECTION ELEVEN
+		
+		Now traverse up the circuit hierarchy from the target circuit to the root,
+		including any available nested layouts.
+
+	*/
+	
+	$fbx_circuitName := join paths($fusebox{"circuits"}{$fusebox{"homeCircuit"}}; $fbx_curPath)
+	
+	for ($fbx_i; size of array($fbx_textArray); 1; -1)
+		// If the nesting flag has been turned off, stop the traversal
+		if (not($fusebox{"nestLayouts"}))
+			break
+		end if
+		
+		if ($fbx_i > 1)
+			$fusebox{"thisCircuit"} := $fbx_reverseCircuitPath{$fbx_circuitName}
+			$fusebox{"thisLayoutPath"}  := $fbx_curPath + "/"
+		else
+			$fusebox{"thisCircuit"} := $fusebox{"homeCircuit"}
+			$fusebox{"thisLayoutPath"}  := $fbx_curPath
+		end if
+			
+		$fusebox{"isTargetCircuit"} := $fusebox{"thisCircuit"} = $fusebox{"targetCircuit"}
+		$fusebox{"isHomeCircuit"}   := $fusebox{"thisCircuit"} = $fusebox{"homeCircuit"}
+		$fusebox{"currentPath"}     := $fusebox{"thisLayoutPath"}
+		$fusebox{"rootPath"}        := "../" * ($fbx_i - 1)
+		
+		// include the fbx_layouts.a4d file for this circuit
+		$fbx_basePath := join paths($fusebox{"thisLayoutPath"}; "fbx_layouts.a4d")
+		
+		if (file exists(join paths($inRootPath; $fbx_basePath)))
+			include(join paths($root; $fbx_basePath))
+		else
+			$fusebox{"layoutFile"} := ""
+			$fusebox{"layoutDir"}  := ""
+		end if
+		
+		if ($fusebox{"layoutFile"})
+			// Attempt to include the actual layout file which was set by fbx_layouts.a4d
+			$fbx_basePath := join paths($fusebox{"thisLayoutPath"}; $fusebox{"layoutDir"}; $fusebox{"layoutFile"})
+			
+			if (not(file exists(join paths($inRootPath; $fbx_basePath))))
+				if (not($fusebox{"suppressErrors"}))
+					throw("Fusebox core: could not find the layout file \"{0}\" specified by \"{1}\"" %% (join paths($inRootPath; $fbx_basePath); join paths($fusebox{"thisLayoutPath"}; "fbx_layouts.a4d")))
+				end if
+			end if
+			
+			include into(join paths($root; $fbx_basePath); $fusebox{"layout"})
+		end if
+		
+		// Remove one level of the path
+		$fbx_curPath := directory of($fbx_curPath; *)
+		$fbx_circuitName := directory of($fbx_circuitName; *)
+	end for
+	
+	// Clear any junk that may have been left by direct includes of fbx files
+	clear response buffer
+	
+	// Finally, output the completely-nested layout
+	write raw($fusebox{"layout"})
+	
+end method
+	
+
+
+/************************************************************************************************
+	sendFuseaction
+	
+	This method is the Active4D equivalent of the <cfmodule> tag in
+	ColdFusion or the Module() method in Fusebox/PHP. It allows you
+	to call another circuit by sending a fuseaction to it.
+	
+	The syntax is basically like this:
+	
+	  $fusebox->sendFuseaction("Calendar.showMonth"; new collection("date"; current date))
+		
+	Purpose:	To call a nested fuseaction.
+	Require:	$self = $fusebox
+	Promise:	The fuseaction $inFuseaction will run within the context given by $ioAttributes,
+				As if a web request was made directly to that fuseaction.
+	Errors:		None
+	
+	Parameters:
+	$self			->	Collection	The $fusebox collection
+	$inFuseaction	->	String		The fully qualified circuit.fuseaction to call
+	$ioAttributes	<->	Collection	This becomes $attributes within the nested fuseaction
+************************************************************************************************/
+
+method "sendFuseaction"($self; $inFuseaction; $ioAttributes = 0)
+
+	if (not(is a collection($ioAttributes)))
+		$ioAttributes := new collection
+	end if
+	
+	$ioAttributes{fusebox.conf.fuseaction} := $inFuseaction
+	fusebox.core($self{"appPath"}; $ioAttributes; true)
+	
+end method
+
+
+
+/************************************************************************************************
+	makeURL
+	
+	This method creates a URL suitable for use with links, form actions,
+	redirects, etc.
+	
+	The syntax is basically like this:
+		fusebox.makeURL("calendar.showMonth"; "date=2003-10-01")
+		
+	$inFuseaction	->	String		The full circuit.fuseaction to call
+	$inQuery		->	Collection	Query string, should be url-encoded
+	RESULT			<-	Text		URL suitable for use with Fusebox
+************************************************************************************************/
+
+method "makeURL"($inFuseaction; $inQuery = "")
+
+	if (self{"_url_factory"} # "")
+		return (call method(self{"_url_factory"}; $inFuseaction; $inQuery))
+	else
+		global($fbx_self)
+		$url := "{0}?{1}={2}" %% (join paths(directory of(requested url); $fbx_self); fusebox.conf.fuseaction; $inFuseaction)
+	
+		if ($inQuery[[1]] = ";") | ($inQuery[[1]] = "&")
+			return ($url + $inQuery)
+		else
+			return (concat(";"; $url; $inQuery))
+		end if
+	end if
+	
+end method
+
+
+
+/************************************************************************************************
+	setURLFactory
+	
+	If you want to use your own URL style, use this method to set the name of a method
+	which will be called to create URLs when fusebox.makeURL is called. Your factory
+	method should take the same parameters as fusebox.makeURL and return the full URL.
+	
+	If $inMethod is empty, the default URL form is used.
+		
+	$inMethod	->	Text	The method to delegate URL creation to
+	RESULT		<-	Text	The previous URL factory method
+************************************************************************************************/
+
+method "setURLFactory"($inMethod)
+
+	$oldMethod := self{"_url_factory"}
+	self{"_url_factory"} := $inMethod
+	return ($oldMethod)
+	
+end method
+
+
+
+/************************************************************************************************
+	getURLFactory
+	
+	Returns the current URL factory method.
+		
+	RESULT	<-	Text	The current URL factory method
+************************************************************************************************/
+
+method "getURLFactory"
+
+	return (self{"_url_factory"})
+	
+end method
+
+
+
+/************************************************************************************************
+	handleError
+	
+	This method is meant to be called from the error page configured in Active4D.ini.
+	It will redirect to the given fuseaction and place the standard $a4d_err_x variables in
+	the session as session{"a4d_err_x"}. In addition, the full requested URL and referer
+	are put in the session as "a4d_err_url" and "a4d_err_referer" respectively.
+	
+	To ensure proper cleanup, the target fuseaction should call fusebox.postHandleError 
+	after using the session items created by this method.
+	
+	$inTarget		->	Text	The full circuit.fuseaction to call to handle errors
+	$inQuery		->	Text	Query string to pass to the fuseaction, should be URL encoded
+	RESULT			<-	Text	URL suitable for use with Fusebox
+************************************************************************************************/
+
+method "handleError"($inTarget; $inQuery = "")
+
+	$it := local variables("main")
+	$hadSession := count session items > 0
+	
+	while (more items($it))
+		$name := get item key($it)
+		
+		if ($name = "$a4d_err_@")
+			session{substring($name; 2)} := get item value($it)
+		end if
+		
+		next item($it)
+	end while
+	
+	session{"a4d_err_url"} := full requested url
+	session{"a4d_err_referer"} := request info{"Referer"}
+	session{"a4d_err_had_session"} := $hadSession
+	
+	redirect(fusebox.makeURL($inTarget; $inQuery))
+
+end method
+
+
+
+/************************************************************************************************
+	postHandleError
+	
+	This method should be called from the target fuseaction of the fusebox.handleError method,
+	after the session items created by fusebox.handleError are used.
+************************************************************************************************/
+
+method "postHandleError"
+
+	$hadSession := false
+	
+	if (session has("a4d_err_had_session"))
+		$hadSession := session{"a4d_err_had_session"}
+	end if
+	
+	if (not($hadSession))
+		abandon session
+	else
+		delete session item("a4d_err_@")
+	end if
+
+end method
+
+
+
+/************************************************************************************************
+	isFuseboxRequest
+	
+	RESULT	<-	Boolean		Returns True if the current request is a fusebox request
+************************************************************************************************/
+
+method "isFuseboxRequest"
+
+	global($fbx_self)
+	return (defined($fbx_self))
+	
+end method
+
+
+end library

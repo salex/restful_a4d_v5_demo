@@ -1,0 +1,246 @@
+/*
+	Active4D private -- DO NOT EDIT!
+	
+	Copyright (c) 2005-2009 Aparajita Fishman
+*/
+
+library "Breadcrumbs"
+
+
+/*
+	PUBLIC METHODS
+*/
+
+
+/***************************************************************************************************
+	setSeparator
+	
+	Purpose:	Set the default separator used between breadcrumbs
+	Require:	HTML encoded text
+	Promise:	The next time write() is called, $inSeparator will be used
+	Errors:		None
+	
+	Parameters:
+	$inSeparator	->	Text	HTML text
+***************************************************************************************************/
+
+method "setSeparator"($inSeparator)
+	
+	self{"separator"} := $inSeparator
+	
+end method
+
+
+
+/***************************************************************************************************
+	setDivId
+	
+	Purpose:	Set the div id used for breadcrumbs
+	Require:	Valid HTML id
+	Promise:	This id will be used the next time write() is called
+	Errors:		None
+	
+	Parameters:
+	$inId	->	Text	div id
+***************************************************************************************************/
+
+method "setDivId"($inId)
+	
+	self{"div_id"} := $inId
+	
+end method
+
+
+
+/***************************************************************************************************
+	fuseboxNew
+	
+	Purpose:	Create a new breadcrumbs object that uses fusebox
+	Require:	HTML encoded text for $inHomeText, $inHomeAction, and $inHomeQuery
+	Promise:	A fully constructed object
+	Errors:		None
+	
+	Parameters:
+	$inHomeText		->	Text	Text for the home breadcrumb
+	$inHomeAction	->	Text	Fully-qualified fuseaction for the home breadcrumb
+	$inHomeQuery	->	Text	Query string for the home breadcrumb, if any
+***************************************************************************************************/
+
+method "fuseboxNew"($inHomeText; $inHomeAction; $inHomeQuery = "")
+
+	return (_new($inHomeText; $inHomeAction; $inHomeQuery; true))
+	
+end method
+
+
+
+/***************************************************************************************************
+	new
+	
+	Purpose:	Create a new breadcrumbs object that does not use fusebox
+	Require:	HTML encoded text for $inHomeText, $inHomeURL, and $inHomeQuery
+	Promise:	A fully constructed object
+	Errors:		None
+	
+	Parameters:
+	$inHomeText		->	Text	Text for the home breadcrumb
+	$inHomeURL		->	Text	URL (without query string) for the home breadcrumb
+	$inHomeQuery	->	Text	Query string for the home breadcrumb, if any
+***************************************************************************************************/
+
+method "new"($inHomeText; $inHomeURL; $inHomeQuery = "")
+
+	return (_new($inHomeText; $inHomeURL; $inHomeQuery; false))
+	
+end method
+
+
+
+/***************************************************************************************************
+	add
+	
+	Purpose:	Add to an existing breadcrumbs object
+	Require:	HTML encoded text for $inText, $inURL, and $inQuery
+	Promise:	When written, the breadcrumbs will end with this breadcrumb
+	Errors:		None
+	
+	Parameters:
+	$self		->	Breadcrumbs object	The breadcrumbs object
+	$inText		->	Text				Text for this breadcrumb
+	$inURL		->	Text				URL/fuseaction for this breadcrumb
+	$inQuery	->	Text				Query string for this breadcrumb
+***************************************************************************************************/
+
+method "add"($self; $inText; $inURL = ""; $inQuery = "")
+	
+	$self{"_texts"}{} := $inText
+	$self{"_urls"}{}  := $inURL
+	
+	if ($inQuery)
+		if ($inQuery[[1]] = "?")
+			$inQuery := substring($inQuery; 2)
+		end if
+	end if
+	
+	$self{"_queries"}{} := $inQuery
+	
+end method
+
+
+
+/***************************************************************************************************
+	write
+	
+	Purpose:	Write a breadcrumbs object to the response buffer
+	Require:	A valid breadcrumbs object
+	Promise:	When written, the breadcrumbs will end with this breadcrumb
+	Errors:		None
+	
+	Parameters:
+	$self		->	Breadcrumbs object
+***************************************************************************************************/
+
+method "write"($self)
+	writeln("<div id=\"" + self{"div_id"} + "\">")
+	$end := size of array($self{"_texts"})
+	
+	for ($i; 1; $end)
+		if ((length($self{"_urls"}{$i}) = 0) | ($i = $end))
+			writeln($self{"_texts"}{$i})
+		else
+			writeln(_makeURL($self; $i))
+		end if
+		
+		if ($i < $end)
+			writeln(self{"separator"})
+		end if
+	end for
+	
+	writeln("\n</div>")
+end method
+
+
+
+/***************************************************************************************************
+	dumpLib
+	
+	Purpose:	Dump the library variables
+	Require:	Nothing
+	Promise:	a4d.debug.dump collection(self)
+	Errors:		None
+***************************************************************************************************/
+
+method "dumpLib"
+	
+	a4d.debug.dump collection(self; "Breadcrumbs library"; true)
+	
+end method
+
+
+
+/*
+	PRIVATE METHODS
+*/
+
+/***************************************************************************************************
+	__load__
+***************************************************************************************************/
+
+method "__load__"
+	
+	self{"separator"} := "<img src=\"/images/breadcrumb-separator.gif\" alt=\" &gt; \" />"
+	self{"div_id"} := "breadcrumbs"
+	
+end method
+
+
+
+/***************************************************************************************************
+	_new
+	
+	Purpose:	Create a new breadcrumbs object
+	Require:	HTML encoded text for $inHomeText, $inHomeURL, and $inHomeQuery
+	Promise:	A fully constructed object
+	Errors:		None
+***************************************************************************************************/
+
+method "_new"($inHomeText; $inHomeURL; $inHomeQuery; $inUseFusebox)
+
+	$self := new collection("__class__"; current library name;	\\
+							"_use_fusebox"; $inUseFusebox)
+							
+	array text($self{"_texts"}; 0)
+	array text($self{"_urls"}; 0)
+	array text($self{"_queries"}; 0)
+	
+	Breadcrumbs.add($self; $inHomeText; $inHomeURL; $inHomeQuery)
+	return ($self)
+	
+end method
+
+
+
+/***************************************************************************************************
+	_makeURL
+	
+	Helper method that makes a link for a single breadcrumb
+***************************************************************************************************/
+
+method "_makeURL"($self; $inIndex)  // --> outLink
+	
+	if ($self{"_use_fusebox"})
+		return ("<a href=\"{0}\">{1}</a>" %% (fusebox.makeURL($self{"_urls"}{$inIndex}; $self{"_queries"}{$inIndex}); $self{"_texts"}{$inIndex}))
+	else
+		if ($self{"_queries"}{$inIndex})
+			$format := "<a href=\"{0}?{1}\">{2}</a>"
+		else
+			$format := "<a href=\"{0}\">{2}</a>"
+		end if
+		
+		return ($format %% ($self{"_urls"}{$inIndex}; $self{"_queries"}{$inIndex}; $self{"_texts"}{$inIndex}))
+	end if
+	
+end method
+
+
+end library

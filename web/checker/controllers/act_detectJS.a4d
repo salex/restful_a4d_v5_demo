@@ -1,0 +1,33 @@
+<% /*
+<fusedoc fuse="dsp_detectJS.a4d" language="Active4D" specification="2.0">
+	<responsibilities>
+		I check to see if Javascript and cookies are enabled.
+	</responsibilities>
+	<io>
+		<in>
+			<string name="$XFA_home" comments="Go here if Javascript/cookies are enabled" />
+			<string name="$XFA_onNoCookies" comments="Go here if cookies are disabled" />
+			<string name="$noScriptFuse" comments="Display fuse to show if Javascript is disabled" />
+		</in>
+	</io>	
+</fusedoc>
+*/ %>
+<script type="text/javascript">
+setCookie('test', 'test');
+
+// If getCookie succeeds, cookies are enabled
+if (getCookie('test'))
+{
+	deleteCookie('test');
+	window.location.href = '<%=fusebox.makeURL($XFA_home)%>';
+}
+else
+{
+	window.location.href = '<%=fusebox.makeURL($XFA_onNoCookies)%>';
+}
+</script>
+
+<noscript>
+  <% include($noScriptFuse) %>
+</noscript>
+

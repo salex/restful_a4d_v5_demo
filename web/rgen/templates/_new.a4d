@@ -1,0 +1,6 @@
+<h3>New <%=$model%></h3>
+<_esc_
+	$submitAction := "Create"
+	$form_action := rest.controller_path("<%=$controller%>")
+	include("_form.a4d")
+_esc_>

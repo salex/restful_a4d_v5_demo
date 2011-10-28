@@ -1,0 +1,113 @@
+
+library "Ingredient"
+
+method "cudIngredient"($cudAction; $cudPhase; $cudTable; $cudResult; $params; $cudTimestampField; $cudTimestamp)
+	case of 
+		:($cudPhase = "query")
+			unload record([ingredients])
+			if ($cudAction # "create")
+					query([ingredients]; [ingredients]id = num($params{"Ingredient.id"}))
+			end if
+		:($cudPhase = "update") 
+			rest.buildFromParams("ingredients";$params)
+		:($cudPhase = "post") 
+			_request{"new_id"} := [ingredients]id
+		:($cudPhase = "delete") 
+		:($cudPhase = "cleanup") 
+	end case
+	return ("success") 
+end method 
+
+method "create"($attributes)
+	start transaction
+	$cudAction := "create"
+	$params := a4d.utils.filtercollection($attributes;"Ingredient.@")
+	$result := a4d.utils.cud($cudAction; ->[ingredients]; "cudIngredient"; $params)
+	if ($result # "success")
+		cancel transaction
+		return($result)
+	end if
+	
+	validate transaction
+	return($result)
+end method
+
+method "update"($attributes)
+	start transaction
+	$cudAction := "update"
+	$params := a4d.utils.filtercollection($attributes;"Ingredient.@")
+	$params{"Ingredient.id"} := $attributes{"id"} // id is in rest path
+	$result := a4d.utils.cud($cudAction; ->[ingredients]; "cudIngredient"; $params)
+	if ($result # "success")
+		cancel transaction
+		return($result)
+	end if
+	
+	validate transaction
+	return($result)
+	
+end method
+
+method "delete"($attributes)
+	start transaction
+	$params := a4d.utils.filtercollection($attributes;"Ingredient.@")
+	$cudAction := "delete"
+	$params{"Ingredient.id"} := $attributes{"id"} // id is in rest path
+	$result := a4d.utils.cud($cudAction; ->[ingredients]; "cudIngredient"; $params)
+	if ($result # "success")
+		cancel transaction
+		return("Failed in Ingredient: "$result)
+	end if
+	
+	
+	
+	
+	validate transaction
+	return($result)
+end method
+
+method "find_all"($attributes)
+	
+	all records([ingredients])
+	
+	$callback := """
+	
+	"""
+	$include_map := "unit.name:[units]name;vendor.name:[vendors]name;"
+	if ($attributes{"ftr"})
+		_filter($attributes)
+	end if
+	if ($attributes{"bst"})
+		$attributes{"pbst"} := $attributes{"bst"}
+	else
+		if ($attributes{"pbst"})
+			$attributes{"bst"} := $attributes{"pbst"}
+		end if
+	end if
+	order by([ingredients];[ingredients]name;>)
+	return(rest.build_rowset("Ingredient";$attributes;new collection("include_map";$include_map;"callback" ;$callback)))
+end method
+
+method "find"($attributes)
+	return(rest.find("Ingredient";$attributes{"id"}))
+end method
+
+method "find_related"($relModel;$attributes;$parent=0)
+	return(rest.find_related("Ingredient";$relModel;$attributes;$parent))
+end method
+
+method "new"($attributes)
+	return(rest.new("Ingredient"))
+end method
+
+method "_filter"($attributes)
+		
+	if ($attributes{"ftr_name"}) 
+		query selection([Ingredients]; [Ingredients]name = $attributes{"ftr_name"}) 
+	end if
+			
+	
+end method
+
+end library
+

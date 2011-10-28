@@ -1,0 +1,353 @@
+<%
+/*
+	Active4D session editor
+	
+	Copyright (c) 2001-2005 Aparajita Fishman
+*/
+	
+	global($form)
+	
+	if (defined($fusebox))
+		$form := $attributes
+	else
+		$form := _form
+	end if
+	
+	method "handleSet"($inKey; $inType; $inIndex; &$outKeyErr; &$outValueErr)
+		global($form)
+		$value := $form{"sed_value"}
+		
+		case of
+			:($inType = "text")
+				session{$inKey} := $value
+			
+			:($inType = "longint") | ($inType = "real")
+				if (length($value) = 0)
+					$outValueErr := "Please enter a numeric value"
+				else
+					if ($inType = "longint")
+						session{$inKey} := int(num($value))
+					else
+						session{$inKey} := num($value)
+					end if
+				end if
+				
+			:($inType = "date")
+				if (length($value) = 0)
+					$outValueErr := "Please enter a date value"
+				else
+					session{$inKey} := date($value)
+				end if
+				
+			:($inType = "time")
+				if (length($value) = 0)
+					$outValueErr := "Please enter a time value"
+				else
+					session{$inKey} := time($value)
+				end if
+				
+			:($inType = "boolean")
+				if (($value #~ "/^(?:true|false)$/i"))
+					$outValueErr := "Please enter \"true\" or \"false\""
+				else
+					session{$inKey} := $value = "true"
+				end if
+				
+			:($inType = "array@")
+				$index := -1
+
+				if ($inIndex # "")
+					$it := get session item($inKey)
+					$type := get item type($it)
+					
+					if ($type = is undefined) | not(is array($type))
+						$outKeyErr := "That item was not an array"
+					else
+						$index := num($inIndex)
+						
+						if (($index < 0) | ($index > size of array(session{$inKey})))
+							$outKeyErr := "Index out of bounds"
+						end if
+					end if
+				else
+					array text($array; 0)
+					$separator := $form{"sed_separator"}
+					
+					if (length($separator) = 0)
+						$separator := " "
+					end if
+						
+					split string($value; $separator; $array; true)
+				end if
+				
+				case of
+					:($outKeyErr # "")
+						// Trap this condition
+						
+					:($index > 0)
+						case of
+							:($inType = "array text")
+								if ($type # text array)
+									$outKeyErr := "Expected a text array"
+								else
+									session{$inKey}{$index} := $value
+								end if
+							
+							:($inType = "array longint") | ($inType = "array real")
+								if (length($value) = 0)
+									$outValueErr := "Please enter a numeric value"
+								else
+									if (($type # longint array) | ($type # real array))
+										$outKeyErr := "Expected a numeric array"
+									else
+										session{$inKey}{$index} := num($value)
+									end if
+								end if
+								
+							:($inType = "array date")
+								if (length($value) = 0)
+									$outValueErr := "Please enter a date value"
+								else
+									if ($type # date array)
+										$outKeyErr := "Expected a date array"
+									else
+										session{$inKey}{$index} := date($value)
+									end if
+								end if
+						end case
+					
+					:($inType = "array text")
+						session{$inKey} := $array
+						
+					:($inType = "array longint")
+						array longint(session{$inKey}; size of array($array))
+						
+						for ($i; 1; size of array($array))
+							session{$inKey}{$i} := int(num($array{$i}))
+						end for
+						
+					:($inType = "array real")
+						array real(session{$inKey}; size of array($array))
+						
+						for ($i; 1; size of array($array))
+							session{$inKey}{$i} := num($array{$i})
+						end for
+						
+					:($inType = "array date")
+						array date(session{$inKey}; size of array($array))
+						
+						for ($i; 1; size of array($array))
+							session{$inKey}{$i} := date($array{$i})
+						end for
+				end case							
+		end case
+	end method
+	
+	
+	method "getTypename"($inType) // -> String
+		case of
+			:($inType = Is Text)
+				return ("text")
+				
+			:($inType = Is Longint)
+				return ("longint")
+				
+			:($inType = Is Real)
+				return ("real")
+				
+			:($inType = Is Date)
+				return ("date")
+				
+			:($inType = Is Time)
+				return ("time")
+				
+			:($inType = Is Boolean)
+				return ("boolean")
+				
+			:($inType = Text Array)
+				return ("array text")
+				
+			:($inType = Longint Array)
+				return ("array longint")
+				
+			:($inType = Real Array)
+				return ("array real")
+				
+			:($inType = Date Array)
+				return ("array date")
+				
+		else
+			write to console("Unhandled type in {0}: {1}" %% (current method name; $inType))
+		end case
+	end method	
+	
+	$keyErr := ""
+	$valueErr := ""
+	$indexErr := ""
+	$errTemplate := "<br />\n<span style=\"color: #ff3333\">{0}</span>"
+	$itemName := ""
+	$valueType := ""
+	$value := ""
+	$key := $form{"sed_key"}
+	$typename := $form{"sed_type"}
+	
+	if ($typename = "")
+		$typename := "text"
+	end if
+	
+	case of
+		:($form{"sed_set"} # "")
+			if ($key = "")
+				$keyErr := "Please enter an item key"
+			else
+				handleSet($key; $typename; $form{"sed_index"}; $keyErr; $valueErr)
+			end if
+		
+		:($form{"sed_get"} # "")
+			if ($key = "")
+				$keyErr := "Please enter an item key"
+			else				
+				if (session has($key))
+					$type := type(session{$key})
+					$typename := getTypename($type)
+					
+					if (is array($type))
+						if ($form{"sed_index"} # "")
+							$index := num($form{"sed_index"})
+							
+							if (($index < 1) | ($index > size of array(session{"key"})))
+								$indexErr := "Index out of range"
+							else
+								$value := session{"key"}{$index}
+							end if
+						else
+							$value := join array(session{$key}; " "; 1; false; false)
+						end if
+					else
+						$value := session{$key}
+						
+						if (type($value) = is date)
+							$value := string($value; mm dd yyyy forced)
+						end if
+					end if
+				else
+					$keyErr := "No item with that key"
+				end if
+			end if
+			
+		:($form{"sed_delete"} # "")
+			if ($key = "")
+				$keyErr := "Please enter an item key"
+			else
+				delete session item($key)
+			end if
+		
+		:($form{"sed_abandon"} # "")
+			abandon session
+			
+		:($form{"sed_set_timeout"} # "")
+			$timeout := num($form{"sed_timeout"})
+			
+			if ($timeout > 0)
+				set session timeout($timeout)
+			end if
+	end case
+	
+	if (length($keyErr) > 0)
+		$keyErr := $errTemplate %% ($keyErr)
+	end if
+	
+	if (length($valueErr) > 0)
+		$valueErr := $errTemplate %% ($valueErr)
+	end if
+	
+	if (length($indexErr) > 0)
+		$indexErr := $errTemplate %% ($indexErr)
+	end if
+	
+	if (undefined($fusebox))
+%>
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN" "DTD/xhtml1-transitional.dtd">
+<html>
+<head>
+<title>Active4D Session Editor</title>
+<meta http-equiv="Content-Type" content="text/html; charset=iso-8859-1" />
+<% a4d.debug.writeDumpStyles %>
+</head>
+<body style="margin: 0; padding: 0">
+<% 
+	else // in fusebox
+		fusebox.head.addDumpStyles
+	end if
+	
+	$url := full requested url
+%>
+<div class="a4d-debug">
+<form name="a4d_sed_form" method="post" action="<%=$url%>" style="margin-bottom: 1em">
+  <table cellspacing="1">
+    <tr> 
+      <td class="title" colspan="2">Active4D Session Editor</td>
+    </tr>
+    <tr> 
+      <td class="label">Item key</td>
+      <td> 
+        <input type="text" name="sed_key" size="50" value="<%=$key%>" title="The key which identifies a session item"/>
+          <%=$keyErr%>
+	  </td>
+    </tr>
+    <tr> 
+      <td class="label">Value type</td>
+      <td> 
+          <select name="sed_type" title="Select the type for the session item">
+		    <% a4d.web.buildOptionsFromOptionList("Text;Longint;Real;Date;Time;Boolean;Array Text;Array Longint;Array Real;Array Date"; 0; $typename) %>
+          </select>
+      </td>
+    </tr>
+    <tr> 
+      <td class="label">Array index</td>
+      <td> 
+        <input type="text" name="sed_index" size="7" title="Enter a number here to set a specific array element within an array session item"/>
+        <%=$indexErr%>
+	  </td>
+    </tr>
+    <tr> 
+      <td class="label top">Value</td>
+      <td>
+        <textarea name="sed_value" cols="50" rows="3" title="Enter the session item value"><%=$value%></textarea>
+		<%=$valueErr%>
+	  </td>
+    </tr>
+    <tr> 
+      <td class="label">Array separator</td>
+      <td> 
+        <input type="text" name="sed_separator" size="13" title="Enter the text used to separate array elements in the Value field if you are setting an array item"/>
+      </td>
+    </tr>
+    <tr> 
+      <td class="label">Item controls</td>
+      <td> 
+          <input type="submit" name="sed_set" value="Set" style="margin-right: 20px" />
+          <input type="submit" name="sed_get" value="Get" style="margin-right: 20px" />
+          <input type="submit" name="sed_delete" value="Delete" />
+      </td>
+    </tr>
+    <tr> 
+      <td class="label">Session controls</td>
+      <td> 
+        <input type="submit" name="sed_abandon" value="Abandon" style="margin-right: 30px" />
+        <input type="text" name="sed_timeout" size="7" style="margin-right: 30px" value="<%=get session timeout%>" /> 
+        <input type="submit" name="sed_set_timeout" value="Set Timeout" />
+      </td>
+    </tr>
+  </table>
+</form>
+</div>
+<% 
+	a4d.debug.dump session
+	
+	if (undefined($fusebox))
+%>
+</body>
+</html>
+<%  end if %>
+

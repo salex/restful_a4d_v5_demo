@@ -1,0 +1,370 @@
+/*
+	Active4D private -- DO NOT EDIT!
+	
+	Copyright (c) 2005-2009 Aparajita Fishman, All Rights Reserved
+*/
+
+library "fusebox.head"
+
+
+/*
+	PUBLIC METHODS
+*/
+
+
+/***********************************************************************************
+	addCSS
+	
+	$inFusebox	Collection	->	The fusebox collection
+	$inURLs		Text		->	URLs to CSS stylesheets
+***********************************************************************************/
+
+method "addCSS"($inFusebox; $inURLs)
+	
+	_add($inFusebox; "css"; $inURLs)
+	
+end method
+
+
+
+/***********************************************************************************
+	addJavascript
+	
+	$inFusebox	Collection	->	The fusebox collection
+	$inURLs		Text		->	URLs to Javascript files
+***********************************************************************************/
+
+method "addJavascript"($inFusebox; $inURLs)
+	
+	_add($inFusebox; "js"; $inURLs)
+	
+end method
+
+
+
+/***********************************************************************************
+	addJS
+	
+	$inFusebox	Collection	->	The fusebox collection
+	$inURLs		Text		->	URLs to Javascript files
+***********************************************************************************/
+
+method "addJS"($inFusebox; $inURLs)
+	
+	_add($inFusebox; "js"; $inURLs)
+	
+end method
+
+
+
+/***********************************************************************************
+	addMetaTag
+	
+	$inFusebox	Collection	->	The fusebox collection
+	$inTags		Text		->	Meta tags
+***********************************************************************************/
+
+method "addMetaTag"($inFusebox; $inTags)
+	
+	_add($inFusebox; "meta"; $inTags; "|")
+
+end method
+
+
+
+/***********************************************************************************
+	addDumpStyles
+***********************************************************************************/
+
+method "addDumpStyles"
+	
+	_ensureCollection
+	_request{"__fusebox.head__"}{"writeDumpStyles"} := "1"
+
+end method
+
+
+
+/***********************************************************************************
+	setTitle
+	
+	$inTitle		Text		->	Window title
+***********************************************************************************/
+
+method "setTitle"($inTitle)
+	
+	_ensureCollection
+	_request{"__fusebox.head__"}{"title"} := $inTitle
+
+end method
+
+
+
+/***********************************************************************************
+	getTitle
+	
+	RESULT		Text		<-	Window title
+***********************************************************************************/
+
+method "getTitle"
+	
+	return (choose(_request{"__fusebox.head__"} = 0; ""; _request{"__fusebox.head__"}{"title"}))
+
+end method
+
+
+
+/***********************************************************************************
+	write
+***********************************************************************************/
+
+method "write"
+
+	if (_request{"__fusebox.head__"})
+		$key := "title"
+	
+		if (_request{"__fusebox.head__"}{$key} # "")
+			write("\n<title>{0}</title>\n\n" %% (mac to html(_request{"__fusebox.head__"}{$key}; *)))
+		end if
+	
+		_writeMetaTags
+		_writeCSS
+	
+		if (_request{"__fusebox.head__"}{"writeDumpStyles"} = "1")
+			a4d.debug.writeDumpStyles
+		end if
+	
+		_writeJS
+	end if
+	
+end method
+
+
+
+/*
+	PRIVATE METHODS
+*/
+
+
+/***********************************************************************************
+	_ensureCollection
+	
+	Ensure the fusebox.head collection exists
+***********************************************************************************/
+
+method "_ensureCollection"
+	
+	if (_request{"__fusebox.head__"} = 0)
+		_request{"__fusebox.head__"} := new collection
+	end if
+	
+end method
+
+
+
+/***********************************************************************************
+	_init
+	
+	$inType		String		->	Type of entity to create
+	$inFusebox	Collection	->	$fusebox
+	RESULT		Collection	<-	Collection for storage of the given type
+	
+	Creates data structures necessary for functioning of the library.
+***********************************************************************************/
+
+method "_init"($inType; $inFusebox)
+	
+	_ensureCollection
+	
+	// We keep a collection to hold all of the fusebox.head data for each entity type.
+	// We also keep an array to keep track of the order in which circuits add data.
+	
+	if (not(collection has(_request{"__fusebox.head__"}; $inType)))
+		$col := new collection
+		_request{"__fusebox.head__"}{$inType} := $col
+		array text($col{"__order__"}; 0)
+	else
+		$col := _request{"__fusebox.head__"}{$inType}
+	end if
+	
+	// Within the entity collection, there is one item for each circuit
+	// whose key is the circuit alias and whose value is a text array
+	// whose zero element contains the root-relative path to the circuit.
+	
+	if (not(collection has(_request{"__fusebox.head__"}; "root")))
+		// Calculate the url to the root circuit
+		_request{"__fusebox.head__"}{"root"} := substring($inFusebox{"appPath"}; length(get root))
+	end if
+	
+	$circuit := $inFusebox{"thisCircuit"}
+	
+	if (not(collection has($col; $circuit)))
+		array text($col{$circuit}; 0)
+		$col{$circuit}{0} := join paths(_request{"__fusebox.head__"}{"root"}; $inFusebox{"currentPath"})
+		$col{"__order__"}{} := $circuit
+	end if
+	
+	return ($col)
+	
+end method
+
+
+
+/***********************************************************************************
+	_add
+	
+	$inFusebox		Collection	->	$fusebox
+	$inType			String		->	Entity type
+	$inTags			Text		->	Tags to add
+	$inDelimiter	String		->	Delimiter between tags
+***********************************************************************************/
+
+method "_add"($inFusebox; $inType; $inTags; $inDelimiter = ";")
+	
+	$col := _init($inType; $inFusebox)
+	
+	array text($tags; 0)
+	split string($inTags; $inDelimiter; $tags)
+	$circuit := $inFusebox{"thisCircuit"}
+	
+	for each ($tags; $tag)
+		$col{$circuit}{} := $tag
+	end for each
+	
+end method
+
+
+
+/***********************************************************************************
+	_writeCSS
+***********************************************************************************/
+
+method "_writeCSS"
+	
+	$key := "css"
+	
+	if (not(collection has(_request{"__fusebox.head__"}; $key)))
+		return
+	end if
+	
+	$col := _request{"__fusebox.head__"}{$key}
+	
+	for each ($col{"__order__"}; $circuit)
+		$circuitPath := $col{$circuit}{0}	// get the path to the circuit
+		write('<!-- css added by $circuit circuit -->\n')
+		
+		for each ($col{$circuit}; $file)
+			
+			// If the first character is "!", it should be written as is
+			if ($file[[1]] = "!")
+				writeln(substring($file; 2))
+			else
+				$file := slice string($file; "|"; $attributes)
+				$dir := directory of($file)
+				$file := filename of($file)
+				
+				// Parse the filename
+				if (ascii($file[[1]]) = ascii("@"))
+					$media := "media=\"{0}\"" %% (substring(slice string($file; ":"; $file); 2))
+				else
+					$media := ""
+				end if
+			
+				$file := slice string($file; ":"; $title)
+			
+				if ($title = "")
+					$type := "stylesheet"
+				else
+					$type := "alternate stylesheet"
+					$title := 'title="$title"'
+				end if
+				
+				// Leave absolute paths alone
+				if ($dir[[1]] = "/")
+					$path := join paths($dir; $file)
+				else
+					$path := join paths($circuitPath; $dir; $file)
+				end if
+				
+				write('<link rel="$type" type="text/css" href="$path" $media $title $attributes />\n')
+			end if
+		end for each
+		
+		write('<!-- end $circuit circuit css -->\n\n')
+	end for each
+	
+end method
+
+
+
+/***********************************************************************************
+	_writeJS
+***********************************************************************************/
+
+method "_writeJS"
+	
+	$key := "js"
+	
+	if (not(collection has(_request{"__fusebox.head__"}; $key)))
+		return
+	end if
+	
+	$col := _request{"__fusebox.head__"}{$key}
+	
+	for each ($col{"__order__"}; $circuit)
+		$circuitPath := $col{$circuit}{0}	// get the path to the circuit
+		write('<!-- Javascript added by $circuit circuit -->\n')
+		
+		for each ($col{$circuit}; $script)
+			
+			// If the first character is "!", it should be written as is
+			if ($script[[1]] = "!")
+				writeln(substring($script; 2))
+			else
+				$script := slice string($script; "|"; $attributes)
+				write('<script type="text/javascript" src="`join paths($circuitPath; $script)`" $attributes></script>\n')
+			end if
+		end for each
+		
+		write('<!-- end $circuit circuit Javascript -->\n\n')
+	end for each
+	
+end method
+
+
+
+/***********************************************************************************
+	_writeMetaTags
+***********************************************************************************/
+
+method "_writeMetaTags"
+	
+	$key := "meta"
+	
+	if (not(collection has(_request{"__fusebox.head__"}; $key)))
+		return
+	end if
+	
+	$col := _request{"__fusebox.head__"}{$key}
+	
+	for each ($col{"__order__"}; $circuit)
+		write('<!-- meta tags added by $circuit circuit -->\n')
+		
+		for each ($col{$circuit}; $tag)
+			
+			// If the first character is "!", it should be written as is
+			if ($tag[[1]] = "!")
+				writeln(substring($tag; 2))
+			else
+				$tag := slice string($tag; "|"; $attributes)
+				write('<meta $tag $attributes />\n')
+			end if
+		end for each
+		
+		write('<!-- end $circuit circuit meta tags -->\n\n')
+	end for each
+	
+end method
+
+
+end library

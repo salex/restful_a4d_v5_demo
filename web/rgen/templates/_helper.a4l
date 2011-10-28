@@ -1,0 +1,18 @@
+/*
+	<%=$controller%> library
+
+*/
+
+library "<%=$controller%>"
+
+
+
+method "testme"($attributes)
+	all records([<%=$table%>])
+	order by([<%=$table%>]; [<%=$table%>]id; >)  //TODO substitute order_by from $rest
+	$<%=$controller%> := rest.build_rowset("<%=$model%>";$attributes)
+	return($<%=$controller%>)
+end method
+
+end library
+

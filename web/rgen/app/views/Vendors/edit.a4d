@@ -1,0 +1,6 @@
+<h3>Edit Vendor</h3>
+<%
+	$submitAction := "Update"
+	$form_action := rest.controller_path("Vendors";num($attributes{"id"})) 
+	include("_form.a4d")
+%>

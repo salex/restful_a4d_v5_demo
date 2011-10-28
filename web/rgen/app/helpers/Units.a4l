@@ -1,0 +1,18 @@
+/*
+	Units library
+
+*/
+
+library "Units"
+
+
+
+method "testme"($attributes)
+	all records([units])
+	order by([units]; [units]id; >)  //TODO substitute order_by from $rest
+	$Units := rest.build_rowset("Unit";$attributes)
+	return($Units)
+end method
+
+end library
+

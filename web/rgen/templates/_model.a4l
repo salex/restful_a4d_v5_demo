@@ -1,0 +1,170 @@
+
+library "<%=$model%>"
+
+method "cud<%=$model%>"($cudAction; $cudPhase; $cudTable; $cudResult; $params; $cudTimestampField; $cudTimestamp)
+	case of 
+		:($cudPhase = "query")
+			unload record(<%=("["+$table+"]")%>)
+			if ($cudAction # "create")
+					query([<%=$table%>]; [<%=$table%>]id = num($params{"<%=$model%>.id"}))
+			end if
+		:($cudPhase = "update") 
+			rest.buildFromParams("<%=$table%>";$params)
+		:($cudPhase = "post") 
+			_request{"new_id"} := [<%=$table%>]id
+		:($cudPhase = "delete") 
+		:($cudPhase = "cleanup") 
+	end case
+	return ("success") 
+end method 
+
+method "create"($attributes)
+	start transaction
+	$cudAction := "create"
+	$params := a4d.utils.filtercollection($attributes;"<%=$model%>.@")
+	$result := a4d.utils.cud($cudAction; ->[<%=$table%>]; "cud<%=$model%>"; $params)
+	if ($result # "success")
+		cancel transaction
+		return($result)
+	end if
+	<%
+	for each ($rgen{"hasOne"}; $key; $imodel)
+	  write($imodel{"create_one_as"})
+	end for each
+	%>
+	validate transaction
+	return($result)
+end method
+
+method "update"($attributes)
+	start transaction
+	$cudAction := "update"
+	$params := a4d.utils.filtercollection($attributes;"<%=$model%>.@")
+	$params{"<%=$model%>.id"} := $attributes{"id"} // id is in rest path
+	$result := a4d.utils.cud($cudAction; ->[<%=$table%>]; "cud<%=$model%>"; $params)
+	if ($result # "success")
+		cancel transaction
+		return($result)
+	end if
+	<%
+	for each ($rgen{"hasOne"}; $key; $imodel)
+	  write($imodel{"update_one"})
+	end for each
+		%>
+	validate transaction
+	return($result)
+	
+end method
+
+method "delete"($attributes)
+	start transaction
+	$params := a4d.utils.filtercollection($attributes;"<%=$model%>.@")
+	$cudAction := "delete"
+	$params{"<%=$model%>.id"} := $attributes{"id"} // id is in rest path
+	$result := a4d.utils.cud($cudAction; ->[<%=$table%>]; "cud<%=$model%>"; $params)
+	if ($result # "success")
+		cancel transaction
+		return("Failed in <%=$model%>: "$result)
+	end if
+	
+	<%for each ($rgen{"hasOne"}; $key; $imodel)
+	  write($imodel{"delete_as"})
+	end for each%>
+	<%for each ($rgen{"hasMany"}; $key; $imodel)
+	  write($imodel{"delete_many"})
+	end for each%>
+	
+	validate transaction
+	return($result)
+end method
+
+method "find_all"($attributes)
+	<%
+		$callback := new collection
+		$include_map := ""
+		for each ($attributes{"index"}; $mf; $index)
+			$x := $model+"."
+			if ($x !~ $mf )
+				split string($mf;".";$chunks)
+				$mmodel := $chunks{1}
+				$mfield := $chunks{2}
+				$mrelation := $rest{"models"}{$model}{"relations"}{$mmodel}{"relation"}
+				$mt := $rest{"models"}{$mmodel}{"table"}
+				$mtable := "["+$mt+"]"+$mfield
+				$include_map += $mf+":"+$mtable+";"
+				if ("_as" ~ $mrelation)
+					$poly := $rest{"models"}{$model}{"relations"}{$mmodel}{"fkey"}
+					$pid := $poly+"_id"
+					$ptype := $poly+"_type"
+					$callback{$mmodel} := 'query([$mt]; [$mt]$ptype = "$model"; *)\n'
+					$callback{$mmodel} += 'query([$mt]; & ;[$mt]$pid = [$table]id)\n'
+				end if
+			end if
+		end for each
+	%>
+	all records([<%=$table%>])
+	
+	$callback := """
+	<%for each ($callback; $key; $value)
+write($value)
+	end for each%>
+	"""
+	$include_map := "<%=$include_map%>"
+	if ($attributes{"ftr"})
+		_filter($attributes)
+	end if
+	if ($attributes{"bst"})
+		$attributes{"pbst"} := $attributes{"bst"}
+	else
+		if ($attributes{"pbst"})
+			$attributes{"bst"} := $attributes{"pbst"}
+		end if
+	end if
+	<%=$rest{"models"}{$model}{"order_by"}%>
+	return(rest.build_rowset("<%=$model%>";$attributes;new collection("include_map";$include_map;"callback" ;$callback)))
+end method
+
+method "find"($attributes)
+	return(rest.find("<%=$model%>";$attributes{"id"}))
+end method
+
+method "find_related"($relModel;$attributes;$parent=0)
+	return(rest.find_related("<%=$model%>";$relModel;$attributes;$parent))
+end method
+
+method "new"($attributes)
+	return(rest.new("<%=$model%>"))
+end method
+
+method "_filter"($attributes)
+		<%$filterBlock := ""
+		if(defined($filter))
+			$temp := """
+	if ($attributes{\"value\"}) 
+		query selection([controller]; [controller]field = $attributes{\"value\"}) 
+	end if
+			"""
+			split string($filter;";";$filterArray)
+			for each ($filterArray; $value; $index)
+				$field := replace string($value;"ftr_";"")
+				array text($re;0) // regex array
+				array text($rp;0) // replace array
+				// set the reqex array
+				$re{} := "|value|"  // object => convert :{ to ;new collection(
+				$re{} := "|controller|" // text array  => convert :[ to ;new array(  -- local method see above
+				$re{} := "|field|" // end text array => convert ] to )
+				//set the replacement array
+				$rp{} := $value
+				$rp{} := $controller
+				$rp{} := $field
+				regex replace($re; $temp; $rp; $results)
+				$filterBlock += $results
+			end for each
+		
+		write($filterBlock)
+	end if%>
+	
+end method
+
+end library
+

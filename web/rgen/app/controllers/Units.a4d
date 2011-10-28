@@ -1,0 +1,65 @@
+<%		
+
+method "validRoute"($attributes)
+end method
+
+case of
+	:($action = "index")
+		$Units := Unit.find_all($attributes)
+		include("../views/Units/index.a4d")
+	:($action = "show")
+		$Unit := Unit.find($attributes)
+
+		include("../views/Units/show.a4d")
+		
+	:($action = "new")
+		$Unit := Unit.new($attributes)
+		
+		
+
+		include("../views/Units/new.a4d")
+		
+	:($action = "create")
+		$result := Unit.create($attributes)
+		if($result = "success")
+			session{"errmsg"} := "info:Unit Created"
+			redirect(choose($attributes{"_referer"};$attributes{"_referer"};rest.controller_path("Units")))
+			
+		else
+			session{"errmsg"} := "Unit NOT created. Reason: "+$result
+			redirect(choose($attributes{"_referer"};$attributes{"_referer"};rest.controller_path("Units")))
+		end if
+		
+	:($action = "edit")
+		$Unit := Unit.find($attributes)
+
+		include("../views/Units/edit.a4d")
+		
+	:($action = "update")
+		$result := Unit.update($attributes)
+		if($result = "success")
+			session{"errmsg"} := "info:Unit Updated"
+			redirect(rest.controller_path("Units";num($attributes{"id"})))
+		else
+			session{"errmsg"} := "Unit NOT Updated. Reason: "+$result
+			redirect(rest.controller_path("Units";num($attributes{"id"})))
+		end if
+		
+	:($action = "destroy")
+		$result := Unit.delete($attributes)
+		if($result = "success")
+			session{"errmsg"} := "info:Unit Deleted"
+			redirect(choose($attributes{"_referer"};$attributes{"_referer"};rest.controller_path("Units")))
+		else
+			session{"errmsg"} := "Unit NOT deleted. Reason: "+$result
+			redirect(choose($attributes{"_referer"};$attributes{"_referer"};rest.controller_path("Units";num($attributes{"id"}))))
+		end if
+		
+	:($action = "_test")
+		$Unit := Unit.find($attributes)
+		include("../views/Units/test.a4d")
+
+	else
+		Throw('Action: $action not found for controller Units')
+end case
+%>

@@ -1,0 +1,104 @@
+<%$bq := $filterQuery+"pbst"%>
+<_esc_
+// Make the base query string for the edit links
+$baseQuery := a4d.web.collectionItemsToQuery($attributes; "<%=$bq%>")
+
+_esc_>
+<h3>Show <%=$model%></h3>
+
+	<div class="box dform">
+		<fieldset>
+			<legend><%=$model%> Information</legend>
+			
+       		<%
+			$soa := size of array($attributes{"show"})
+			if($soa > 8)
+				$breakDiv := ($soa \ 2) + 1
+				write('<div class="dleft col-14">\n')
+			else
+				$breakDiv := $soa + 10
+			end if
+			
+			for ($i; 1; $soa)
+				$cnt := split string($attributes{"show"}{$i};".";$mf)
+				$mdl := trim($mf{1})
+				$fld := trim($mf{2})
+				$label := capitalize(replace string($fld;"_";" "))
+				if ($model # $mdl )
+					$label := capitalize($mdl)+ " "+$label
+				end if
+				if ($i = $breakDiv)
+					write('</div>\n<div class="dright col-14">\n')
+				end if
+				
+				%>
+					<div>
+						<label><%=$label%></label>
+						<_esc_=$<%=$mdl%>{"<%=$mdl%>.<%=$fld%>"} _esc_>
+						<br />
+					</div>
+			<%end for
+			if ($i >= $breakdiv)
+				write("</div>\n")
+			end if%>
+			
+			<br class="dclear" />
+			<div class="dactions">
+				<strong>Actions: </strong>
+				<%if($attributes{"main_edit"})%>
+				<a class="dlink-button" href="<_esc_=rest.edit_controller_path("<%=$controller%>";$<%=$model%>{"<%=$model%>.id"})_esc_>">Edit</a>
+				<%end if%>
+				<%if($attributes{"main_delete"})%>
+				<_esc_=delete_link("<%=$controller%>";$<%=$model%>{"<%=$model%>.id"}) _esc_>
+				<%end if%>
+				<a class="dlink-button"  href="<_esc_=rest.controller_path("<%=$controller%>") _esc_><_esc_=choose($basequery;"?"+$basequery;"")_esc_>">Return to <%=$controller%></a>
+				<%
+					for each ($rgen{"hasOne"}; $key; $mdl)
+						write($mdl{"returnParent"})
+					end for each
+				%>
+			</div>
+		</fieldset>
+	</div>
+	<%if($hasMany) %>
+		<fieldset>
+			<legend>Resources</legend>
+	
+			<div class="dtab">
+			<%$i := 1
+				for each ($rgen{"hasMany"}; $mkey; $mdl)
+				$key := $rest{"models"}{$mkey}{"controller"}
+				if($i = 1)%>
+				<input id="tab" type="hidden" value="<_esc_=choose($attributes{"oc"} # "";$attributes{"oc"};"<%=$key%>")_esc_>" />
+			    <ul>
+				<%end if
+							
+						
+						
+						if($i = 1)%>
+						<li id="<%=$key%>" class="<_esc_=choose(($attributes{"oc"} = "") | ($attributes{"oc"} = "<%=$key%>") ;"activelink";"")_esc_>">
+							<a href="javascript:rajaxUpdate('<%=$controller%>','<%=$key%>',<_esc_=$<%=$model%>{"<%=$model%>.id"}_esc_>,'<_esc_=$basequery_esc_>')"><%=$key%></a>
+						</li>
+						<%else%>
+						<li id="<%=$key%>" class="<_esc_=choose( ($attributes{"oc"} = "<%=$key%>") ;"activelink";"")_esc_>">
+							<a href="javascript:rajaxUpdate('<%=$controller%>','<%=$key%>',<_esc_=$<%=$model%>{"<%=$model%>.id"}_esc_>,'<_esc_=$basequery_esc_>')"><%=$key%></a>
+						</li>
+						<%end if%>
+					<%$i++
+						end for each%>
+					
+			    </ul>
+				<br class="dclear" />
+		
+			</div>
+			<div style="clear:both"></div>
+			<div id="many-div" class="dtable"></div>
+		</fieldset>
+	<%end if %>
+	<script type="text/javascript" charset="utf-8">
+		<_esc_if (collection has($attributes;"bst"))_esc_>
+			rajaxUpdate('<%=$controller%>',$('tab').value,<_esc_=$<%=$model%>{"<%=$model%>.id"}_esc_>,'<_esc_=$basequery_esc_>','<_esc_=$attributes{"bst"} _esc_>')
+		<_esc_else_esc_>
+			rajaxUpdate('<%=$controller%>',$('tab').value,<_esc_=$<%=$model%>{"<%=$model%>.id"}_esc_>,'<_esc_=$basequery_esc_>')
+		<_esc_end if_esc_>
+	</script>

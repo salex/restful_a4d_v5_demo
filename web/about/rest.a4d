@@ -1,0 +1,110 @@
+<% /*
+<fusedoc fuse="dsp_hello.a4d" language="Active4D" specification="2.0">
+	<responsibilities>
+		I greet the user when he/she first visits the site.
+	</responsibilities>
+</fusedoc>
+*/ 
+
+fusebox.head.setTitle(fusebox.head.getTitle + " - Welcome")
+
+%>
+<h1>REST and CRUD</h1>
+<%include("dlist.a4d")%>
+
+<div id="content-right" class="col-25 dpara"  >
+
+<h1>Representational State Transfer (REST)</h1>
+
+<p>The term Representational State Transfer (REST) was introduced and defined in 2000 by Roy Fielding in his doctoral
+dissertation. <a href="http://www.ics.uci.edu/~fielding/pubs/dissertation/rest_arch_style.htm"> Chapter 5 -Representational State
+Transfer (REST)</a> The wikipedia version is <a href="http://en.wikipedia.org/wiki/Representational_State_Transfer">here</a>.</p>
+
+<h1>Short Version</h1>
+
+<p>Rest deals with resources. Resources in a relational database consists of records in tables (or tuples if you want to get into
+relational algebra!).</p>
+
+<p>There are only 4 things you can do with a record or a group of records:</p>
+
+<ul class="indent">
+	<li>Create a record(s)</li>
+	<li>Read record(s)</li>
+	<li>Update a record(s)</li>
+	<li>Delete a record(s)</li>
+</ul>
+
+<p>Of the 4 things you can do, only 3 modify the resource or record - Create, Update, and Delete. We&rsquo;ve all heard those
+terms, but maybe never though about them in their pure scientific definitions. 4D&rsquo;s triggers are based on the 3 events that
+can modify a resource. Active4D&rsquo;s library method a4d.utils.cud implements a web version of the triggers (and a little
+more!)</p>
+
+<h1>HTTP</h1>
+
+<p>The HTTP protocol actually defines these 4 things, but with different words:</p>
+
+<table class="wikitable" style="font-size:.8em" >
+<caption>RESTful Web Service HTTP methods</caption>
+<tr>
+<th style="width:20%">Resource</th>
+<th style="width:20%">GET</th>
+<th style="width:20%">PUT</th>
+<th style="width:20%">POST</th>
+<th style="width:20%">DELETE</th>
+</tr>
+<tr>
+<td >Collection URI, such as <span style="font-size:.7em">http://example.com/resources/</span></td>
+<td><b>List</b> the members of the collection, complete with their member URIs for further navigation. For example, list all the cars for sale.</td>
+<td>Meaning defined as "replace the entire collection with another collection".</td>
+<td><b>Create</b> a new entry in the collection where the ID is assigned automatically by the collection. The ID created is usually included as part of the data returned by this operation.</td>
+<td>Meaning defined as "delete the entire collection".</td>
+</tr>
+<tr>
+<td>Member URI, such as <span style="font-size:.7em">http://example.com/resources/7HOU57Y</span></td>
+<td><b>Retrieve</b> a representation of the addressed member of the collection expressed in an appropriate MIME type</td>
+<td><b>Update</b> the addressed member of the collection or <b>create</b> it with the specified ID.</td>
+<td>Treats the addressed member as a collection in its own right and creates a new subordinate of it.</td>
+<td><b>Delete</b> the addressed member of the collection.</td>
+</tr>
+</table>
+
+<p>I guess after stealing this table from wikipedia, there are really 8 things you can do, depending if you have a group of
+resource or a single resource. RoR does not implement, and I don&rsquo;t think I would either the PUT, POST, and DELETE methods
+for a group of records. I&rsquo;d rather define those methods in a custom action.</p>
+
+<p>Unfortunately, HTML and XHTML only define two of the methods GET and POST, so most (if not all) web servers do not implement
+the DELETE and PUT methods. A Restful approach fixes that deficiency with a few band-aids. </p>
+
+<h1>Create, Read, Update, Delete (CRUD)</h1>
+
+<p>I actually heard the term crud long before rest. Guess it is just another way of saying the same thing - you can only do 4
+things with a resource. Most CRUD schemes provide actions to handle the methods. RoR, as of version 2, implemented CRUD actions
+for restful applications. They include 7 actions.</p>
+
+<ul class="indent">
+	<li>Index GET then include view/index</li>
+	<li>Show GET then include view/show</li>
+	<li>New GET then include view/new</li>
+	<li>Create POST action only</li>
+	<li>Edit GET then include view/edit</li>
+	<li>Update PUT action only</li>
+	<li>Destroy DELETE action only</li>
+</ul>
+
+<p>Fusebox, at least the Active4D version, implements these same actions, but uses the switch a little differently in that it mixes
+the Create and Update actions together.</p>
+
+<ul class="indent">
+	<li>Index = List GET then list </li>
+	<li>Show = View GET then view</li>
+	<li>New = Edit(new) GET then edit</li>
+	<li>Create = ACT_update(Create) POST</li>
+	<li>Edit = Edit GET then edit</li>
+	<li>Update = ACT_update(Update) POST</li>
+	<li>Destroy = ACT_update(Destroy) POST (or GET)</li>
+</ul>
+
+<p>In RoR, what action gets called is really determined by what HTTP method is passed to the controller. That in part is
+controlled by the URI which is controlled by something called <a href="/about/route">"Routing"</a>.</p>
+
+</div>

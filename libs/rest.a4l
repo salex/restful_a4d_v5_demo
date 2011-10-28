@@ -1,0 +1,596 @@
+
+/*
+  rest library
+*/
+
+library "rest"
+
+/*
+  library constructor
+*/
+method "__load__"
+  if (not(collection has(self;"_rest")))
+    init
+  end if
+end method
+
+
+/*
+  library destructor
+*/
+method "__unload__"
+  _unload
+end method
+
+method "_unload"
+  if (collection has(self;"_rest"))
+    if (is a collection(self{"_rest"}))
+      deep clear collection(self{"_rest"})
+    else
+      delete collection item(self;"_rest")
+    end if
+  end if
+end method
+
+method "order_by"($table;$fields)
+  split string($fields;";";$chunks)
+  $ob := "order by(["+$table+"]"
+  for each ($chunks; $elem; $index)
+    $dir := ">"
+    if ($elem =~ "/(<|>)/")
+      $dir := $elem[[-1]]
+      $elem := replace string($elem;$dir;"")
+    end if
+    $ob += ";["+$table+"]"+$elem+";"+$dir
+  end for each
+  $ob += ")"
+  return($ob)
+end method
+
+method "init"
+include into("/config/rest.models.json";$json)
+
+  $coll := rest.utils.jsonParseSimple($json)
+  $coll{"controllers"} := new collection
+  for each ($coll{"models"}; $model; $value)
+    $coll{"controllers"}{$value{"controller"}} := $model
+    if ($value{"order_by"})
+      $value{"order_by"} := order_by($value{"table"};$value{"order_by"})
+    end if
+  end for each
+  $coll{"tables"} := new collection
+  self{"_rest"} := deep copy collection($coll;*)
+end method
+
+method "reload"
+  _unload
+  init
+end method
+
+method "dump"
+  a4d.debug.dump collection(self)
+end method
+
+method "get"
+  return(self{"_rest"})
+end method
+/*
+  makeUrl
+  
+  This method is used as the URL factory by fusebox.makeURL.
+  It makes a url in the /circuit/action style we are using.
+*/
+method "xxxmakeUrl"($inFuseaction; $inQuery = "")
+  
+  $circuit := slice string($inFuseaction; "."; $action)
+  $url := "/%s/%s" % ($circuit; $action)
+  
+  if (length($inQuery) > 0)
+    $url += choose($inQuery[[1]] = "?"; ""; "?") + $inQuery
+  end if
+  
+  return ($url)
+  
+end method
+
+
+method "newCollection"($string;$removelf=true)
+  if (type($data) = 9 ) // is longint
+    return($data)
+  end if
+  
+  regex replace("/(->[^\"'])/";$string;":=";$list)
+  $replace := "return (char(34)+trim(\"\1\")+char(34))"
+  regex replace("/:([a-zA-Z_\\.0-9\\-][^:=;\\n]+)/e";$list;$replace;$list)
+  regex replace("/(:=|=\\>)/";$list;";";$list)
+  if ($removelf)
+    $list := replace string($list;"\n";"")
+  end if
+  //writebr('<textarea>$list</textarea>')
+  $result := execute('return(new collection($list))')
+  return($result)
+end method
+
+method "oldnewCollection"($data)
+  if (type($data) = 9 ) // is longint
+    return($data)
+  end if
+  regex replace("/:([a-zA-Z_\\.0-9\\-]+)/";$data;'"\\1"';$list)
+  regex replace("/(:=|=\\>|-\\>)/";$list;";";$list)
+  $result := execute('return(new collection($list))')
+  return($result)
+end method
+
+method "options"($list)
+  return(rest.newCollection($list))
+end method
+
+method "_isTrue"($value)
+  if (($value="1") | ($value="on") | ($value="t@") | ($value="y@"))
+    return(true)
+  else
+    return(false)
+  end if
+end method
+  
+  
+method "buildFromParams"($table;$params)
+  for each ($params; $key; $value)
+    $cnt := split string($key;".";$chunks)
+    if ($cnt # 2)
+      Throw("Not a restful form element name: " + $key)
+    end if
+    $field := '[$table]' + $chunks{2}
+    $field_ptr := get field pointer($field)
+    $type := type($field_ptr->)
+    if (_request{"updateID"})
+      $updateID := true
+    else
+      $updateID := false
+    end if
+    case of
+      :(($chunks{2} = "id") & $updateID) //update ID if override in _request'
+        $field_ptr-> := num($value)
+      :($chunks{2} = "id") //don't update ID Trigger only
+      :(($type = 8) | ($type = 9)| ($type = 1)| ($type = 11))
+        $field_ptr-> := num($value)
+      :(($type = 0) | ($type = 24))
+        //$value := main.str_filter($value)
+        //if ($key =~ kPhoneFilter)
+          //$value := main.unformatPhone($value)
+        //end if
+        $field_ptr-> := $value
+      :($type = 2)
+        //$value := main.str_filter($value;"textarea")
+        $field_ptr-> := $value
+      :($type = 4)
+        if (type($value)= 4)
+          $field_ptr-> := $value
+        else
+          $field_ptr-> := date($value)
+        end if
+      :($type = 30)
+        if (type($value)= 30)
+          $field_ptr-> := $value
+        else
+        end if
+      :($type = 11)
+        if (type($value)= 11)
+          $field_ptr-> := $value
+        else
+          $field_ptr-> := time($value)
+        end if
+      :($type = 6)
+        if (type($value)= 6)
+          $field_ptr-> := $value
+        else
+          $field_ptr-> := _isTrue($value)
+        end if
+        
+      else
+        //$update +=  "//"+$field + " := " + "unknown($attributes{\""+"f_"+$mkey+"\"})\n" 
+    end case
+  end for each
+end method
+
+method "getTable"($model;$include="")
+  global($rest)
+  if ((collection has($rest{"tables"};$model)) & ($include = ""))
+    return($rest{"tables"}{$model})
+  end if
+  $tmp := $rest{"models"}{$model}{"table"}
+  $table_ptr := get field pointer('[$tmp]')
+  if (nil($table_ptr) )
+    throw('Invalid table name $tmp')
+  end if
+  $table_num := table($table_ptr)
+  $table :=table name($table_ptr;*)
+  $table_name  := table name($table_ptr)
+  $table_id := $rest{"models"}{$model}{"id"}
+  array pointer($fields; 0)
+  array longint($fieldTypes; 0)
+  array string(80; $fieldNames; 0)
+  $map := ""
+  for ($i; 1; count fields($table_num))
+    $fields{} := field($table_num; $i)
+    $fieldTypes{} := type($fields{$i}->)
+    $fieldNames{} := field name($table_num; $i)
+    $map += $model + "."+$fieldnames{$i} + " : " + field name($table_num; $i;*) + ";"
+  end for
+  if ($include)
+    $map += $include
+    //write to console($map)
+  end if
+  if ($map[[length($map)]] = ";")
+    $map := substring($map;1;length($map)-1)
+  end if
+  $result := new collection("table_pointer";$table_ptr;"table";$table;"table_num";\\
+    $table_num;"table_id";$table_id;"table_name";$table_name;"fields";$fields;"field_names";\\
+    $fieldnames;"table_map";$map;"field_types";$fieldTypes)
+  $rest{"tables"}{$model} := deep copy collection($result;*)
+  return($result)
+end method
+
+method "build_rowset"($model;$attributes;$opt=0)
+  // called with selection
+  global($rest)
+  $callback := ""
+  $include_map := ""
+  $batched := true
+  $name := ""
+  $timeout := 0
+  $map := ""
+  if (not($opt))
+    if ($rest{"models"}{$model}{"order_by"}) // default order_by
+         execute($rest{"models"}{$model}{"order_by"})
+    end if
+  end if
+  if ($opt)
+     if (collection has($opt;"order_by"))
+         execute($opt{"order_by"})
+    else
+      if ($rest{"models"}{$model}{"order_by"}) // default order_by
+           execute($rest{"models"}{$model}{"order_by"})
+      end if
+     end if
+     if (collection has($opt;"callback"))
+         $callback := $opt{"callback"}
+     end if
+     if (collection has($opt;"include_map"))
+         $include_map := $opt{"include_map"}
+     end if
+     if (collection has($opt;"map"))
+         $map := rest.build_map($model;$opt{"map"})
+         if ($include_map)
+           $map := $map + ";" + $include_map
+         end if
+         if ($map[[length($map)]] = ";")
+          $map := substring($map;1;length($map)-1)
+        end if
+     end if
+     if (collection has($opt;"nobatch"))
+         $batched := false
+     end if
+     if (collection has($opt;"name"))
+         $name := $opt{"name"}
+     end if
+     if (collection has($opt;"timeout"))
+         $timeout := $opt{"timeout"}
+     end if
+  end if
+  $t := getTable($model;$include_map)
+  $map := choose($map # "";$map;$t{"table_map"})
+  $rows := records in selection($t{"table_pointer"}->)
+  //write to console('rest buildrs opt $opt rows $rows')    
+  if ($batched)
+    batch.setSize(15)
+    $batch := Batch.newFromSelection($t{"table_pointer"}; $attributes)
+    $result := RowSet.newFromSelection($t{"table_pointer"}; $map;$batch;$callback;$name;$timeout)
+    $result{"batch"} := $batch  
+  else
+    $result := RowSet.newFromSelection($t{"table_pointer"}; $map;-1;$callback;$name;$timeout)
+    //write to console("nobatch")   
+  end if
+  return($result)
+end method
+
+method "build_map"($model;$list)
+  $t := getTable($model)
+  $map := ""
+  $cnt := split string($list;";";$include)
+  for each ($include; $value; $index)
+    $pos := find in array($t{"field_names"};$value)
+    if ($pos > 0)
+      $n := $t{"field_names"}{$pos}
+      $map += $model + "."+$n + " : " + $t{"table"}+$n + ";"
+    end if
+  end for each
+  return(substring($map;1;length($map)-1))
+end method
+
+method "new"($model)
+  $t := getTable($model)
+  create record($t{"table_pointer"}->)
+  $current_record := new collection
+  for ($i; 1; size of array($t{"fields"}))
+    $current_record{$model+"."+$t{"field_names"}{$i}} := $t{"fields"}{$i}->
+  end for
+  return($current_record)
+end method
+
+method "find"($model;$id;$opt=0)
+  $id := num($id)
+  $t := getTable($model)
+  $query := 'query($t{"table"}; $t{"table"}$t{"table_id"} = $id)'
+  execute($query)
+  $result := rest.build_rowset($model;0;$opt)
+  $first := $result->first
+  $current_record := $result->getRow
+  return($current_record)
+end method
+
+method "find_as"($model;$as;$id;$opt=0)
+    global($rest)
+    $id := num($id)
+  $fkey := $rest{"models"}{$as}{"relations"}{$model}{"fkey"}
+  $type := $fkey+"_type"
+  $fid := $fkey+"_id"
+  $t := getTable($model)
+  $query := '''
+      query($t{"table"}; $t{"table"}$fid = $id;*)
+      query($t{"table"}; &;$t{"table"}$type= "$as")
+  '''
+  execute($query)
+  $result := rest.build_rowset($model;0;$opt)
+  $first := $result->first
+  $current_record := $result->getRow
+  return($current_record)
+end method
+
+method "find_by_attr"($model;$attr;$key;$opt=0)
+  $t := getTable($model)
+  $type := type($key) 
+  if (($type = Is Text) | ($type = Is String Var))
+    $query := 'query($t{"table"}; $t{"table"}$attr = "$key")'
+  else
+    $query := 'query($t{"table"}; $t{"table"}$attr = $key)'
+  end if
+  execute($query)
+  $result := rest.build_rowset($model;0;$opt)
+  $first := $result->first
+  $current_record := $result->getRow
+  return($current_record)
+end method
+
+method "find_all"($model;$attributes;$opt=0)
+  $t := getTable($model)
+  all records($t{"table_pointer"}->)
+  return(rest.build_rowset($model;$attributes;$opt))
+end method
+
+method "find_all_by_attr"($model;$attr;$key;$attributes;$opt=0)
+  $t := getTable($model)
+  $type := type($key) 
+  if (($type = Is Text) | ($type = Is String Var))
+    $query := 'query($t{"table"}; $t{"table"}$attr = "$key")'
+  else
+    $query := 'query($t{"table"}; $t{"table"}$attr = $key)'
+  end if
+  //a4d.debug.dump collection($t)
+  execute($query)
+  
+  if ($opt)
+    if ($opt{"where"})
+      execute($opt{"where"})
+      $opt{"default"}
+    end if
+  end if
+  
+  return(rest.build_rowset($model;$attributes;$opt))
+end method
+
+method "find_all_as"($model;$as;$id;$attributes;$opt=0)
+    global($rest)
+    $id := num($id)
+  $fkey := $rest{"models"}{$as}{"relations"}{$model}{"fkey"}
+  $type := $fkey+"_type"
+  $fid := $fkey+"_id"
+  $t := getTable($model)
+  $query := '''
+      query($t{"table"}; $t{"table"}$fid = $id;*)
+      query($t{"table"}; &;$t{"table"}$type= "$as")
+  '''
+  execute($query)
+  $result := rest.build_rowset($model;$attributes;$opt)
+  return($result)
+end method
+
+method "find_all_through"($model;$id;$relModel;$attributes;$opt=0)
+  //find all citizens for stage id through citizen_stages
+  //find_all_through("stage";"stage.id";"citizen";$attributes)
+  global($rest)
+    $id := num($id)
+//write to console('rest{"models"}{$model}{"relations"}{$relModel}{"fkey"}')
+  $fkey := $rest{"models"}{$model}{"relations"}{$relModel}{"fkey"}
+  $cnt := split string($fkey;".";$chunks)
+  $through := $chunks{1}
+  $modelKey := $chunks{2}
+  $relKey := $chunks{3}
+  //write to console('fat $model $id $relmodel $through $modelkey $relkey')
+  //$tt := "["+$rest{"models"}{$through}{"table"}+"]"
+  $manyTable := "["+$rest{"models"}{$through}{"table"} + "]" //getTable($through)
+  $oneTable := "["+$rest{"models"}{$relModel}{"table"} + "]"
+  $query := 'query($manyTable; $manyTable$modelKey = $id)'
+  execute($query)
+  $relMany := 'RELATE ONE SELECTION($manyTable;$oneTable)'
+    execute($relMany)
+  $result := rest.build_rowset($relModel;$attributes;$opt)
+  return($result)
+
+end method
+
+method "find_related"($model;$relModel;$attributes;$parent=0;$opt=0)
+  global($rest)
+  $relation := $rest{"models"}{$model}{"relations"}{$relModel}{"relation"}
+  $fkey := $rest{"models"}{$model}{"relations"}{$relModel}{"fkey"}
+  $id := num($attributes{"id"})
+  $fid := -1
+  if (is a collection($parent))
+    $fid := $parent{$model+"."+$fkey}
+  end if
+  //write to console('rest find_rel opt $opt')    
+  
+  case of
+    :($relation = "has_many_through") //citizen stage
+      $result := rest.find_all_through($model;$id;$relmodel;$attributes;$opt)     
+    :($relation = "has_many_as")
+      $result := rest.find_all_as($model;$id;$relModel;$attributes;$opt)      
+    :($relation = "has_one_as") //company address
+      $result := rest.find_as($relModel;$model;$id;$opt)      
+    :($relation = "has_many") //company service
+      $result := rest.find_all_by_attr($relModel;$fkey;$id;$attributes;$opt)      
+    :($relation = "belongs_to")
+      $result := rest.find($relModel;$fid)
+    :($relation = "has_one")
+      $result := rest.find($relModel;$id)       
+    else
+      throw("Invalid find related relationship: " + $relation)
+  end case
+  return($result)
+end method
+
+method "controller_path"($path;$id=-1;$query="")
+  $cnt := split string($path;"/";$chunks)
+  $id:= num($id)
+  case of
+    :(($cnt = 1) &($id < 0)) //index
+      $result := ("/"+$path)
+    :(($cnt = 1) &($id > 0)) //show
+      $result := ("/"+$path+"/"+$id)
+    :(($cnt = 2) &($id < 0)) //action
+      $result := ("/"+$chunks{1}+"/"+$chunks{2})
+    :(($cnt = 2) &($id > 0)) //index
+      $result := ("/"+$chunks{1}+"/"+$id+"/"+$chunks{2})
+    else
+      $result := "/root/handleError?error=Invalid+Controller+Path: "+$path+" ID: "+$id
+  end case
+  if ($query)
+    //$query := url encode($query)
+    $result += '?$query'
+  end if
+  return($result)
+end method
+
+method "edit_controller_path"($path;$id=-1;$query="")
+  $cnt := split string($path;"/";$chunks)
+  case of
+    :(($cnt = 1) &($id > 0)) //get
+      $result := ("/"+$path+"/"+$id+"/edit")
+    else
+      $result := "/root/handleError?error=Invalid+Edit+Controller+Path: "+$path+" ID: "+$id
+  end case
+  if ($query)
+    //$query := url encode($query)
+    $result += '?$query'
+  end if
+  return($result)
+end method
+
+method "new_controller_path"($path;$id=-1;$query="")
+  $id := num($id)
+  $cnt := split string($path;"/";$chunks)
+  
+  case of
+    :(($cnt = 1) &($id < 0)) //not dependent
+      $result := ("/"+$path+"/new")
+    :(($cnt = 2) &($id > 0)) // dependent
+      $result := ("/"+$chunks{1}+"/"+$id+"/"+$chunks{2}+"/new")
+    else
+      $result := "/root/handleError?error=Invalid+New+Controller+Path: "+$path+" ID: "+$id
+  end case
+  if ($query)
+    //$query := url encode($query)
+    $result += '?$query'
+  end if
+  return($result)
+  
+end method
+
+method "action_controller_path"($path;$id=-1;$query="")
+  $id := num($id)
+  
+  $cnt := split string($path;"/";$chunks)
+  case of
+    :(($cnt = 2) &($id > 0)) // dependent
+      $result := ("/"+$chunks{1}+"/"+$id+"/"+$chunks{2})
+    :(($cnt = 2) &($id < 0)) // simple action
+      $result := ("/"+$chunks{1}+"/"+$chunks{2})
+    else
+      $result := "/root/handleError?error=Invalid+Action+Controller+Path: "+$path+" ID: "+$id
+  end case
+  if ($query)
+    //$query := url encode($query)
+    $result += '?$query'
+  end if
+  return($result)
+  
+end method
+
+method "delete_link"($controller;$id)
+  $rfr := _request{"_referer"}
+  $href := controller_path($controller;$id)
+  $result := '<a class="dlink-button" href="$href" onclick="return destroy(this,\'$rfr\');">Delete</a>'
+  return($result)
+end method
+
+method "button_link"($controller;$name;$id=-1)
+  $id := num($id)
+  if($id > 0)
+    $href := controller_path($controller;$id)
+  else
+    $href := controller_path($controller)
+  end if
+  $result := '<a class="dlink-button" href="$href">$name</a>'
+  return($result)
+  
+end method
+
+method "validParent"($controller;$instance;$attributes)
+  global($rest)
+  $model := $rest{"controllers"}{$controller}
+  $result := ""
+  for each ($rest{"models"}{$model}{"relations"}; $key; $imodel)
+    if ($imodel{"mandatory"}) 
+      $valid := _parentFields($controller;$instance;$attributes)
+      if (not($valid))
+        session{"a4d_Error"} := '$controller: Missing mandatory parent id for $key'
+        redirect("/root/handleError")
+      end if
+      $result += $valid
+    end if
+  end for each
+  return($result)
+end method
+
+method "_parentFields"($controller;$instance;$attributes)
+  global($rest)
+  $result := ""
+  if ($attributes{"parent1"})
+    $model := $rest{"controllers"}{$controller}
+    $parent_model := $rest{"controllers"}{$attributes{"parent1"}}
+    $fkey := $rest{"models"}{$parent_model}{"relations"}{$model}{"fkey"}
+    $result += form.hidden_field_tag('$model.$fkey';$attributes{$attributes{"parent1"}+"_id"})
+    $instance{'$model.$fkey'} := num($attributes{$attributes{"parent1"}+"_id"})
+  end if
+  if ($attributes{"parent2"})
+    $model := $rest{"controllers"}{$controller}
+    $parent_model := $rest{"controllers"}{$attributes{"parent2"}}
+    $fkey := $rest{"models"}{$parent_model}{"relations"}{$model}{"fkey"}
+    $result += form.hidden_field_tag('$model.$fkey';$attributes{$attributes{"parent2"}+"_id"})
+    $instance{'$model.$fkey'} := num($attributes{$attributes{"parent2"}+"_id"})
+  end if
+  return($result)
+end method
+
+end library
+

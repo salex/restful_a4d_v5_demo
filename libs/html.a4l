@@ -1,0 +1,271 @@
+/*
+  HTML library
+  Helpers for form and basic HTML tags
+  
+*/
+
+library "html"
+
+
+  method "setAttr"($opt;$attr)
+    $result := ""
+    if (type($opt{$attr}) = is boolean)
+      if ($opt{$attr})
+        $result := ' $attr="$attr"'
+      end if
+    else
+      $result := ' $attr="$opt{$attr}"'
+    end if
+    return($result)
+  end method
+  
+/***********************************************************************************
+  setID
+
+  $name   ->  Text    Name attribute of input, textarea or select tag
+  $opt    ->  collection  Containing html attributes
+  RESULT    <-  Text    $opt update to include id 
+
+  Convert the name to be a conforming HTML id value. Use that id if one is not present.
+  If $opt{"id"}  is True, append a unique id onto the converted name. If false, remove id from opt.
+***********************************************************************************/
+  
+
+  method "setID"($name;&$opt)
+    regex replace("/[\\[\\].]/";$name;"_";$tmpID)
+    if ($opt)
+      if (collection has($opt;"id"))
+        if (type($opt{"id"}) = is boolean)
+          // true = append unique id
+          // false = no id
+          if ($opt{"id"})
+            $opt{"id"} := $tmpID + "_" + a4d.web.getUniqueID
+          else
+            delete collection item($opt;"id")
+          end if
+        end if
+      else
+        $opt{"id"} := $tmpID
+      end if
+    else
+      $opt := new collection("id";$tmpID)
+    end if
+  end method
+
+
+  method "html_options"($opt)
+    $result := ""
+    if ($opt{"checked"})
+      $result += setAttr($opt;"checked")
+    end if
+    if ($opt{"selected"})
+      $result += setAttr($opt;"selected")
+    end if
+    if ($opt{"disabled"})
+      $result += setAttr($opt;"disabled")
+    end if
+    if ($opt{"multiple"})
+      $result += setAttr($opt;"multiple")
+    end if
+    
+    for each ($opt; $key; $value)
+      if ($key !~ "(multiple|disabled|selected|checked)")
+        $result += ' $key="$value"'
+      end if
+    end for each
+    return($result)
+  end method
+
+  method "text_field_tag"($name;$val;$opt=0)
+    $result := '<input type="text" name="$name" value="$val"'
+    setID($name;$opt)
+    if($opt)
+      $result += html_options($opt)
+    end if
+    $result += " />"
+    return($result)
+  end method
+  
+  method "password_field_tag"($name;$val;$opt=0)
+    $result := '<input type="password" name="$name" value="$val"'
+    setID($name;$opt)
+    if($opt)
+      $result += html_options($opt)
+    end if
+    $result += " />"
+    return($result)
+  end method
+
+  method "hidden_field_tag"($name;$val;$opt=0)
+    $result := '<input type="hidden" name="$name" value="$val"'
+    setID($name;$opt)
+    if($opt)
+      $result += html_options($opt)
+    end if
+    $result += " />"
+    return($result)
+  end method
+
+  method "textarea_tag"($name;$val;$opt=0)
+    $result := '<textarea name="$name" '
+    setID($name;$opt)
+    if($opt)
+      $result += html_options($opt)
+    end if
+    if('rows=' !~ $result)
+      $result += ' rows="3" cols="30"'
+    end if
+    $result += ' >$val</textarea>'
+    return($result)
+  end method
+
+  method "check_box_tag"($name;$val;$opt=0)
+    $result := '<input type="checkbox" name="$name" value="$val" '
+    setID($name;$opt)
+    if($opt)
+      $result += html_options($opt)
+    end if
+    $result += " />"
+    return($result)
+  end method
+
+  method "radio_button_tag"($name;$val;$opt=0)
+    $result := '<input type="radio"  name="$name" value="$val" '
+    setID($name;$opt)
+    if($opt)
+      $result += html_options($opt)
+    end if
+    $result += " />"
+    return($result)
+  end method
+
+  method "select_tag"($name;$selopt;$opt=0)
+    $result := '<select name="$name"  '
+    setID($name;$opt)
+    if($opt)
+      $result += html_options($opt)
+    end if
+    $result += ' >$selopt</select>'
+    return($result)
+  end method
+  
+  method "content_tag"($tag;$content;$opt=0)
+    $result := '<$tag ' 
+    if($opt)
+      $result += html_options($opt)
+    end if
+    $result += ' >$content</$tag>'
+    return($result)
+  end method
+  
+  method "link_to"($value;$href;$opt=0)
+    $result := '<a href="$href"'
+    if($opt)
+      $result += html_options($opt)
+    end if
+    $result += ' >$value</a>'
+    return($result)
+  end method
+  
+
+  method "nc"($string)
+    return(optColl($string))
+  end method
+  
+  method "opt"($string)
+    return(optColl($string))
+  end method
+  
+
+  method "optColl"($string;$removelf=true)
+    if (type($string) = 9 ) // is longint
+      return($string)
+    end if
+    $re1 := "~\"?(Jan|Feb|Mar|Apr|May|Jun|Jul|Aug|Sep|Oct|Nov|Dec)( \\d\\d*, \d{4})\"~"
+    $rp1 := "newDate(\"\1\2\")"
+    regex replace($re1; $string; $rp1; $string)
+  
+    regex replace("/(->[^\"'])/";$string;":=";$list)
+    $replace := "return (char(34)+trim(\"\1\")+char(34))"
+    regex replace("/:([a-zA-Z_\\.0-9\\-][^:=;\\n]+)/e";$list;$replace;$list)
+    regex replace("/(:=|=\\>)/";$list;";";$list)
+    if ($removelf)
+      $list := replace string($list;"\n";"")
+    end if
+    //writebr('<textarea>$list</textarea>')
+    $result := execute('return(new collection($list))')
+    return($result)
+  end method
+
+  method "collOpt"($coll)
+    $rlist := ""
+  
+    for each ($coll; $key; $value)
+      $type := type($value)
+      case of
+        :(($type = 8) | ($type = 9)| ($type = 1)| ($type = 11))
+          $field_val := $value
+        :(($type = 0) | ($type = 24) | ($type = 2))
+          $field_val := '"$value"'
+        :($type = 4)
+          $field_val := a4d.json.encodeDate($value)
+        :($type = 11)
+          if (type($value)= 11)
+            $field_val := $value
+          else
+            $field_val := time($value)
+          end if
+        :($type = 6)
+            $field_val := $value
+        
+        else
+          $field_val := "unknown"
+      end case
+      $rlist += ':$key -> $field_val;'
+    end for each
+    $rlist := substring($rlist;1;length($rlist)-1)
+    return($rlist)
+  end method
+
+  method "newDate"($date)
+    // replace date in Jan 2, 2011 with 4D date
+    array string(3; $months; *; "Jan"; "Feb"; "Mar"; "Apr"; "May"; "Jun"; "Jul"; "Aug"; "Sep"; "Oct"; "Nov"; "Dec")
+    $date := replace string($date;",";"")
+    $cnt := split string($date;" ";$chunks)
+    $tmp := string(find in array($months;$chunks{1}))+'/$chunks{2}/$chunks{3}'
+    return(date($tmp))
+  end method
+
+  method "LDRow"($label;$data)
+      return( '<tr><th>$label</th><td>$data</td></tr>')
+  end method
+  
+  method "labelDataRow"($label;$inputType;$value;$name="";$optString="";$annotate="")
+    $opt := choose($optString;html.nc($optString);0)
+    $result := ""
+    $input := ""
+    case of
+    :($inputType = "text")
+      $input := html.text_field_tag($name;$value;$opt)
+    :($inputType = "password")
+      $input := html.password_field_tag($name;$value;$opt)
+    :($inputType = "textarea")
+      $input := html.textarea_tag($name;$value;$opt)
+    :($inputType = "hidden")
+      $input := html.hidden_field_tag($name;$value;$opt)
+    :($inputType = "radio")
+      $input := html.radio_button_tag($name;$value;$opt)
+    :($inputType = "checkbox")
+      $input := html.checkbox_tag($name;$value;$opt)
+    :($inputType = "select")
+      $input := html.select_tag($name;$value;$opt)
+    else
+      $input := $value  // in case error or just want value, no input
+    end case
+    return(html.LDRow($label;$input+$annotate))
+  end method
+  
+
+
+end library
+

@@ -1,0 +1,104 @@
+
+<%
+// Make the base query string for the edit links
+$baseQuery := a4d.web.collectionItemsToQuery($attributes; "ftr;ftr_name;pbst")
+
+%>
+<h3>Show Ingredient</h3>
+
+	<div class="box dform">
+		<fieldset>
+			<legend>Ingredient Information</legend>
+			
+       		<div class="dleft col-14">
+
+					<div>
+						<label>Id</label>
+						<%=$ingredient{"ingredient.id"} %>
+						<br />
+					</div>
+			
+					<div>
+						<label>Name</label>
+						<%=$ingredient{"ingredient.name"} %>
+						<br />
+					</div>
+			
+					<div>
+						<label>Ship Qty</label>
+						<%=$ingredient{"ingredient.ship_qty"} %>
+						<br />
+					</div>
+			
+					<div>
+						<label>Ship Unit Id</label>
+						<%=$ingredient{"ingredient.ship_unit_id"} %>
+						<br />
+					</div>
+			
+					<div>
+						<label>Price</label>
+						<%=$ingredient{"ingredient.price"} %>
+						<br />
+					</div>
+			</div>
+<div class="dright col-14">
+
+					<div>
+						<label>Vendor Id</label>
+						<%=$ingredient{"ingredient.vendor_id"} %>
+						<br />
+					</div>
+			
+					<div>
+						<label>Timestamp</label>
+						<%=$ingredient{"ingredient.timestamp"} %>
+						<br />
+					</div>
+			
+					<div>
+						<label>Time</label>
+						<%=$ingredient{"ingredient.time"} %>
+						<br />
+					</div>
+			
+					<div>
+						<label>Unit Name</label>
+						<%=$unit{"unit.name"} %>
+						<br />
+					</div>
+			
+					<div>
+						<label>Vendor Name</label>
+						<%=$vendor{"vendor.name"} %>
+						<br />
+					</div>
+			</div>
+
+			
+			<br class="dclear" />
+			<div class="dactions">
+				<strong>Actions: </strong>
+				
+				<a class="dlink-button" href="<%=rest.edit_controller_path("Ingredients";$Ingredient{"Ingredient.id"})%>">Edit</a>
+				
+				
+				<%=delete_link("Ingredients";$Ingredient{"Ingredient.id"}) %>
+				
+				<a class="dlink-button"  href="<%=rest.controller_path("Ingredients") %><%=choose($basequery;"?"+$basequery;"")%>">Return to Ingredients</a>
+				
+	<% $rid := $Ingredient{"Ingredient.vendor_id"} %>
+	<a class="dlink-button"  href="<%=rest.controller_path("Vendors";$rid;$baseQuery) %>">Return to Vendor</a>
+	<a class="dlink-button"  href="<%=rest.controller_path("Vendors";-1;$baseQuery) %>">Return to Vendors</a>
+	
+			</div>
+		</fieldset>
+	</div>
+	
+	<script type="text/javascript" charset="utf-8">
+		<%if (collection has($attributes;"bst"))%>
+			rajaxUpdate('Ingredients',$('tab').value,<%=$Ingredient{"Ingredient.id"}%>,'<%=$basequery%>','<%=$attributes{"bst"} %>')
+		<%else%>
+			rajaxUpdate('Ingredients',$('tab').value,<%=$Ingredient{"Ingredient.id"}%>,'<%=$basequery%>')
+		<%end if%>
+	</script>

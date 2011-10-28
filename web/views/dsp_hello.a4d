@@ -1,0 +1,32 @@
+<% /*
+<fusedoc fuse="dsp_hello.a4d" language="Active4D" specification="2.0">
+	<responsibilities>
+		I greet the user when he/she first visits the site.
+	</responsibilities>
+</fusedoc>
+*/ 
+
+fusebox.head.setTitle(fusebox.head.getTitle + " - Welcome")
+%>
+<script src="/js/paramtext.js" type="text/javascript" charset="utf-8"></script>
+<div id="content">
+
+  <h1>Welcome!</h1>
+  
+  <p>Welcome to Active4D, the ultimate 4D web tool.</p>
+  
+  <p>If you can think of it, you can do it with Active4D...more easily,
+  more quickly, more powerfully, and with less bugs than with any
+  other 4D-based tool.</p>
+	 
+  <p>This site gives a little tutorial on how to accomplish many common web programming
+  tasks with Active4D. By reading the instructions and looking at the code, you
+  should get a good idea of how a real site is constructed.</p>
+  
+  <p>This site also is a good example of how to use CSS styles effectively. In looking
+  through the page source code you will see there are remarkably few tags. I
+  hope it inspires you to learn more about the wonders of CSS.</p>
+  
+  <p>Enjoy your tour of Active4D!</p>
+
+</div>

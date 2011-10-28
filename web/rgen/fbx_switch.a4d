@@ -1,0 +1,38 @@
+<% /*
+<fusedoc fuse="fbx_switch.a4d" language="Active4D" specification="2.0">
+	<responsibilities>
+		I am the switch statement that handles fuseactions in this circuit.
+		I delegate to the fuses responsible for handling a given controller.
+	</responsibilities>
+	<io>
+		<out>
+			<string name="$circuitDir" comments="name of the target circuit directory" />
+		</out>
+	</io>	
+</fusedoc>
+
+
+This switch is not typical, as it is handling the shared logic for
+all of its child circuits.
+*/
+//include("application_controller.a4d")
+
+$fuseaction := $fusebox{"fuseaction"}
+$circuit := $fusebox{"circuit"}
+$action := choose($fuseaction = "main";"index";$fuseaction)
+if ($action = "error")
+	session{"errMsg"} := "Invalid Route or Action for "+$circuit
+	include("/views/dsp_errorHandler.a4d")
+	return
+end if
+if ($action = "_method")
+	case of
+		:($attributes{"_method"} = "put")
+			$action := "update"
+		:($attributes{"_method"} = "delete")
+			$action := "destroy"
+	end case
+end if
+
+include($circuit+"_controller.a4d")
+%>

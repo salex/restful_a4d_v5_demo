@@ -1,0 +1,2026 @@
+/*
+	Active4D private - DO NOT EDIT!
+	
+	Copyright (c) 2004-2009 Aparajita Fishman, All Rights Reserved
+*/
+
+library "RowSet"
+
+
+/*
+	PUBLIC METHODS
+*/
+
+define(kRow_BeforeFirst; 0)
+
+
+
+/*************************************************************************************************
+	newFromSelection
+	
+	Purpose:	Creates a new RowSet from a 4D selection.
+	Require:	- $inMainTable is valid table pointer
+				- $inColumnMap is a semicolon-delimited list in the form:
+					<column>:[table]field {; <columnN>:[table]fieldN}
+				  Whitespace at the beginning and end of the <column> and [table]field is ignored.
+				  Each column/field pair must have exactly one colon. The column name must not
+				  be empty, and the field reference must be valid.
+				- $inRowCallback is a valid Active4D expression
+	Promise:	A fully constructed RowSet will be returned with the cursor positioned before
+				the first row in the set. If any of the field references within $inColumnMap
+				are from tables other than $inMainTable, auto-relating of records will be on
+				when fetching row data.
+	Errors:		- Bad table pointer if $inMainTable is not a valid table pointer.
+				- Bad method name if data source methods do not exist.
+				- Invalid column/field specification if the column name is empty or there is
+				  not exactly one colon in the specification.
+				- Invalid table/field reference if a field reference is invalid.
+				- Invalid collection if $inSubset is a collection but not a Batch
+	
+	Parameters:
+	$inMainTable	->[table]			->	Pointer to main table
+	$inColumnMap	Text				->	Virtual column mapping
+	$inSubset		Number/Batch/Text	->	Max number of rows/Batch with subset of source rows/'start:end'
+	$inRowCallback	Text				->	Code to execute for each row that is loaded
+	$inName			Text				->	Name of persistent RowSet, leave empty to make temporary
+	$inTimeout		Number				->	Timeout in minutes
+	RESULT			RowSet				<-	A collection which can be used with other RowSet methods
+*************************************************************************************************/
+
+method "newFromSelection"($inMainTable; $inColumnMap; $inSubset = -1; $inRowCallback = ""; $inName = ""; $inTimeout = 0)
+	
+	if ($inName)
+		return (newFromCachedSelection($inMainTable; $inColumnMap; $inSubset; $inRowCallback; $inName; $inTimeout))
+	else
+		$self := _new("_selection"; $inMainTable; $inSubset; $inRowCallback; $inName; $inTimeout)
+		_selectionInit($self; $inColumnMap)
+		_selectionGetRow($self)
+		return ($self)
+	end if
+	
+end method
+
+
+
+/*************************************************************************************************
+	newFromCachedSelection
+	
+	Purpose:	Creates a new RowSet from a 4D selection which is cached in arrays.
+	Require:	- $inMainTable is valid table pointer
+				- $inColumnMap is a semicolon-delimited list in the form:
+					<column>:[table]field {; <columnN>:[table]fieldN}
+				  Whitespace at the beginning and end of the <column> and [table]field is ignored.
+				  Each column/field pair must have exactly one colon. The column name must not
+				  be empty, and the field reference must be valid.
+				- $inRowCallback is a valid Active4D expression
+	Promise:	A fully constructed RowSet will be returned with the cursor positioned before
+				the first row in the set. If any of the field references within $inColumnMap
+				are from tables other than $inMainTable, auto-relating of records will be on
+				when fetching row data into the internal cache. All of the row data is cached 
+				in arrays.
+	Errors:		- Bad table pointer if $inMainTable is not a valid table pointer.
+				- Bad method name if data source methods do not exist.
+				- Invalid column/field specification if the column name is empty or there is
+				  not exactly one colon in the specification.
+				- Invalid table/field reference if a field reference is invalid.
+				- Invalid collection if $inSubset is a collection but not a Batch
+	
+	Parameters:
+	$inMainTable	->[table]			->	Pointer to main table
+	$inColumnMap	Text				->	Virtual column mapping
+	$inSubset		Number/Batch/Text	->	Max number of rows/Batch with subset of source rows/'start:end'
+	$inRowCallback	Text				->	Code to execute for each row that is loaded
+	$inName			Text				->	Name of persistent RowSet, leave empty to make temporary
+	$inTimeout		Number				->	Timeout in minutes
+	RESULT			RowSet				<-	A collection which can be used with other RowSet methods
+*************************************************************************************************/
+
+method "newFromCachedSelection"($inMainTable; $inColumnMap; $inSubset = -1; $inRowCallback = ""; $inName = ""; $inTimeout = 0)
+	
+	$self := _new("_array"; $inMainTable; $inSubset; $inRowCallback; $inName; $inTimeout)
+	_selectionInit($self; $inColumnMap)
+
+	// If there is no row callback and no column expressions, we can do a straight
+	// SELECTION TO ARRAY. Otherwise the arrays have to be loaded row by row.
+	
+	if ($self{"_rowCallback"} = "") & ("`" !~ $inColumnMap)
+		_loadDirectCachedSelection($self; $inColumnMap)
+	else
+		_loadCachedSelectionByRow($self; $inColumnMap)
+	end if
+
+	_arrayGetRow($self)	
+	return ($self)
+	
+end method
+
+
+
+/*************************************************************************************************
+	newFromArrays
+	
+	Purpose:	Creates a new RowSet from a group of arrays.
+	Require:	$inColumnMap contains valid array references which exist in the global scope.
+	Promise:	A fully constructed RowSet will be returned with the cursor positioned before
+				the first row in the set.
+	Errors:		- Bad method name if data source methods do not exist.
+				- Invalid column/array specification if the column name is empty.
+				- Unknown identifier if an array name is invalid.
+				- Invalid collection if $inSubset is a collection but not a Batch
+	
+	Parameters:
+	$inColumnMap	Text				->	Virtual column mapping in the form 
+											<columnName>:<arrayReference> {; repeat}
+	$inSubset		Number/Batch/Text	->	Max number of rows/Batch with subset of source rows/'start:end'
+	$inName			Text				->	Name of persistent RowSet, leave empty to make temporary
+	$inTimeout		Number				->	Timeout in minutes
+	RESULT			RowSet				<-	A collection which can be used with other RowSet methods
+*************************************************************************************************/
+
+method "newFromArrays"($inColumnMap = ""; $inSubset = -1; $inName = ""; $inTimeout = 0)
+	
+	$self := _new("_array"; nil pointer; $inSubset; ""; $inName; $inTimeout)
+	_arrayInit($self; $inColumnMap)
+	_arrayGetRow($self)
+	return ($self)
+	
+end method
+
+
+
+/************************************************************************************************
+	newFromFile
+	
+	Purpose:	Creates a new RowSet from delimited data, such as CSV, coming from a file.
+	Require:	A valid path to a text file, also see newFromData.
+	Promise:	A fully constructed RowSet will be returned with the cursor positioned before
+				the first row in the set.
+	Errors:		- No such file if no file with the given path exists.
+				- See NewFromData for other errors.
+				- Invalid collection if $inSubset is a collection but not a Batch
+	
+	Parameters:
+	$inPath				Text				->	Path to file
+	$inRowDelimiter		Text				->	Delimiter between rows, defaults to LF
+	$inColumnDelimiter	Text				->	Delimiter between columns, defaults to ',' (comma)
+	$inSubset			Number/Batch/Text	->	Max number of rows/Batch with subset of source rows/'start:end'
+	$inName				Text				->	Name of persistent RowSet, leave empty to make temporary
+	$inTimeout			Number				->	Timeout in minutes
+	$inFormat			Number				->	Format of text in document
+	RESULT				RowSet				<-	A collection which can be used with other RowSet methods
+************************************************************************************************/
+
+method "newFromFile"($inPath; $inRowDelimiter = "\n"; $inColumnDelimiter = ","; $inSubset = -1; $inName = ""; $inTimeout = 0; $inFormat = Mac text without length)
+	
+	c_blob($data)
+	document to blob($inPath; $data)
+	
+	if (OK = 0)
+		throw('RowSet: the file "$inPath" could not be opened (error code `A4D_Error`).')
+	end if
+
+	return (newFromData($data; $inRowDelimiter; $inColumnDelimiter; $inSubset; $inName; $inTimeout; $inFormat))
+	
+end method
+
+
+
+/************************************************************************************************
+	newFromData
+	
+	Purpose:	Creates a new RowSet from delimited data, such as CSV, coming from a text variable.
+	Require:	The first row of $inData contains column names, followed by one or more data rows,
+				with each row delimited by $inRowDelimiter and each column delimited by
+				$inColumnDelimiter. To specify a column data type (the default is text), append 
+				one of the following types to the name, separated by a colon:
+					[boolean, longint, real, date, text]
+				Here is an example:
+					name:text,age:longint,birthdate:date,salary:real,comments\n
+					Dewey Cheatham,54,06/21/1949,75000,Great guy
+	Promise:	A fully constructed RowSet will be returned with the cursor positioned before
+				the first row in the set.
+	Errors:		- Invalid column specification if the column name is empty.
+				- Invalid column type if it is not one of the types listed above.
+				- Invalid collection if $inSubset is a collection but not a Batch
+	
+	Parameters:
+	$inData				Text/BLOB			->	Delimited data
+	$inRowDelimiter		Text				->	Delimiter between rows, defaults to LF
+	$inColumnDelimiter	Text				->	Delimiter between columns, defaults to ',' (comma)
+	$inSubset			Number/Batch/Text	->	Max number of rows/Batch with subset of source rows/'start:end'
+	$inName				Text				->	Name of persistent RowSet, leave empty to make temporary
+	$inTimeout			Number				->	Timeout in minutes
+	$inFormat			Number				->	Format of text if $inData is a BLOB
+	RESULT				RowSet				<-	A collection which can be used with other RowSet methods
+************************************************************************************************/
+
+method "newFromData"($inData; $inRowDelimiter = "\n"; $inColumnDelimiter = ","; $inSubset = -1; $inName = ""; $inTimeout = 0; $inFormat = Mac text without length)
+	
+	// Note that in actual fact the RowSet is an array RowSet internally
+	$self := _new("_array"; nil pointer; $inSubset; ""; $inName; $inTimeout)
+	
+	// We don't actually know how many rows there are in the data, so we'll normalize with
+	// the maximum that we can handle. That will set the start and end for us.
+	_normalize($self; MAXLONG)
+	
+	if (type($inData) = Is BLOB)
+		$inData := blob to text($inData; $inFormat)
+	end if
+	
+	// Read the column configuration
+	c_text($line)
+	$inRowDelimiter := $inRowDelimiter[[1]]
+	$pos := position($inRowDelimiter; $inData)
+	
+	if ($pos < 1)
+		$line := $inData + $inRowDelimiter  // regex pattern needs trailing row delimiter
+	else
+		$line := substring($inData; 1; $pos)
+	end if
+	
+	$inColumnDelimiter := regex quote pattern($inColumnDelimiter[[1]])
+	$inRowDelimiter := regex quote pattern($inRowDelimiter)
+	$pattern := "/(\"?)(.*?)\\1[{0}{1}]/" %% ($inColumnDelimiter; $inRowDelimiter)
+	$numColumns := regex match all($pattern; $line; $columns)
+	get collection keys($columns; $keys)
+	sort array($keys)
+	
+	// Calculate the column names and types
+	c_longint($i)
+	array longint($columnTypes; $numColumns)
+	resize array($self{"_columns"}; $numColumns)
+	$self{"_columnMap"} := choose($self{"_isPersistent"}; new global collection; new collection)
+	c_text($columnName; $type)
+	array text($matches; 0)
+	
+	for ($i; 1; $numColumns)
+		$columnName := trim(slice string($columns{$keys{$i}}{2}; ":"; $type))
+		
+		if ($columnName = "")
+			throw('RowSet: empty column name in column $i.')
+		end if
+		
+		if ($type = "")
+			$type := "text"
+		end if
+		
+		case of
+			:($type = "text") | ($type = "string@")
+				array text($self{"_columnMap"}{$columnName}; 0)
+				$columnTypes{$i} := Is Text
+				
+			:($type = "longint")
+				array longint($self{"_columnMap"}{$columnName}; 0)
+				$columnTypes{$i} := Is Longint
+				
+			:($type = "real")
+				array real($self{"_columnMap"}{$columnName}; 0)
+				$columnTypes{$i} := Is Real
+				
+			:($type = "date")
+				array date($self{"_columnMap"}{$columnName}; 0)
+				$columnTypes{$i} := Is Date
+				
+			:($type = "boolean")
+				array boolean($self{"_columnMap"}{$columnName}; 0)
+				$columnTypes{$i} := Is Boolean
+		else
+			throw('RowSet: invalid column type in column $i: "$type"')
+		end case
+		
+		$self{"_columns"}{$i} := $columnName
+	end for
+	
+	// Now get the data rows
+	c_longint($lastPos; $columnType)
+	$lineNum := 0
+	$dataLength := length($inData)
+	
+	while ($pos > 0)
+		++$lineNum
+		$lastPos := $pos + 1  // skip row delimiter
+		$pos := position($inRowDelimiter; $inData; $lastPos)
+		
+		case of
+			:($lastPos >= $dataLength) | ($lineNum > $self{"_end"})
+				break
+				
+			:($lineNum < $self{"_start"})
+				continue
+		end case
+
+		// regex pattern needs trailing row delimiter, include or add it
+		if ($pos > 0)
+			$line := substring($inData; $lastPos; $pos - $lastPos + 1)
+		else
+			$line := substring($inData; $lastPos) + $inRowDelimiter
+		end if
+		
+		clear collection($columns)
+		$numColumns := regex match all($pattern; $line; $columns)
+		
+		if ($numColumns < size of array($columnTypes))
+			// If there are no data rows, just leave it empty
+			if ($lineNum = 2)
+				--$lineNum
+				break
+			else
+				throw('RowSet: missing data in line $lineNum, expected `size of array($columnTypes)` columns, found $numColumns.')
+			end if
+		end if
+		
+		get collection keys($columns; $keys)
+		sort array($keys)
+		
+		for ($i; 1; $numColumns)
+			$columnType := $columnTypes{$i}
+			$columnName := $self{"_columns"}{$i}
+			
+			case of
+				:($columnType = Is Longint) | ($columnType = Is Real)
+					$self{"_columnMap"}{$columnName}{} := num($columns{$keys{$i}}{2})
+					
+				:($columnType = Is Date)
+					$self{"_columnMap"}{$columnName}{} := date($columns{$keys{$i}}{2})
+					
+				:($columnType = Is Boolean)
+					$self{"_columnMap"}{$columnName}{} := $columns{$keys{$i}}{2} = "true"
+			else
+				$self{"_columnMap"}{$columnName}{} := $columns{$keys{$i}}{2}
+			end case					
+		end for
+	end while
+
+	// normalize again with the actual number of rows we have
+	_normalize($self; max of($lineNum - 1; 0))
+	_arrayGetRow($self)
+	return ($self)
+	
+end method
+
+
+
+/************************************************************************************************
+	setColumnData
+	
+	Purpose:	Add a new column to or replace an existing column in an array-based RowSet.
+	Require:	$self is a valid array-based RowSet reference.
+	Promise:	If no column with the name $inColumn exists, it will be added with the data
+				coming from $inData. If a column already exists with the given name, its 
+				data will be replaced with that from $inData.
+	Errors:		Invalid RowSet if not an array RowSet
+	
+	Parameters:
+	$self			Collection	->	RowSet reference
+	$inColumn		String		->	Name of column to add/update
+	$inData			Text		->	Delimited data to set
+	$inDelimiter	String		->	Delimiter between rows in $inData
+************************************************************************************************/
+
+method "setColumnData"($self; $inColumn; $inData; $inDelimiter = ",")
+	
+	array text($data; 0)
+	split string($inData; $inDelimiter; $data; false)  // 'false' allows empty items
+	setColumnArray($self; $inColumn; $data)
+	
+end method
+
+
+
+/************************************************************************************************
+	setColumnArray
+	
+	Purpose:	Add a new column to or replace an existing column in an array-based RowSet.
+	Require:	$self is a valid array-based RowSet reference.
+	Promise:	If no column with the name $inColumn exists, it will be added with the data
+				coming from $inArray. If a column already exists with the given name, its 
+				data will be replaced with that from $inArray.
+	Errors:		Invalid RowSet if not an array RowSet
+	
+	Parameters:
+	$self		RowSet	->	RowSet reference
+	$inColumn	String	->	Name of column to add/update
+	$inArray	Array	->	Array data to set
+************************************************************************************************/
+
+method "setColumnArray"($self; $inColumn; &$inArray)
+	
+	if ($self{"_dataSource"} # "_array")
+		throw ("RowSet: setColumnArray() called with non-array RowSet or non-RowSet")
+	end if
+	
+	$self{"_columnMap"}{$inColumn} := $inArray
+	$maxSize := max of($self{"_count"}; size of array($inArray))
+	
+	if ($self{"_maxRows"} >= 0)
+		$maxSize := min of($maxSize; $self{"_maxRows"})
+	end if
+	
+	for each ($self{"_columnMap"}; $columnName)
+		resize array($self{"_columnMap"}{$columnName}; $maxSize)
+	end for each
+	
+	$self{"_sourceCount"} := $maxSize
+	
+	// Add column to list of columns if it doesn't exist yet
+	if ($inColumn !~ $self{"_columns"})
+		$self{"_columns"}{} := $inColumn
+	end if
+	
+end method
+
+
+
+/************************************************************************************************
+	setRelateOne
+	
+	Purpose:	Set the auto relate flag explicitly.
+	Require:	$self is valid RowSet reference.
+	Promise:	Future retrievals of row data will auto load related one records.
+	Errors:		None
+	
+	Parameters:
+	$self			Collection	->	RowSet reference
+	$inRelateOne	Boolean		->	True to auto load related one records, false not to
+	RESULT			Boolean		<-	Old value
+************************************************************************************************/
+
+method "setRelateOne"($self; $inRelateOne)
+	
+	$relateOne := $self{"_relateOne"}
+	$self{"_relateOne"} := $inRelateOne
+	return ($relateOne)
+	
+end method
+
+
+
+/************************************************************************************************
+	getRow
+	
+	Purpose:	Retrieve a reference to the row data collection.
+	Require:	$self is valid RowSet reference.
+	Promise:	The returned collection can be indexed by column name to retrieve its data.
+	Errors:		None
+	
+	Parameters:
+	$self	RowSet		->	RowSet reference
+	RESULT	Collection	->	Collection with column names/column values
+************************************************************************************************/
+
+method "getRow"($self)
+	
+	return ($self{"_rowData"})
+	
+end method
+
+
+
+/************************************************************************************************
+	columnCount
+	
+	Purpose:	Returns the number of columns in a RowSet. Use this as the end index when
+				iterating over the RowSet columns.
+	Require:	$self is valid RowSet reference.
+	Promise:	RESULT >= 0.
+	Errors:		None
+	
+	Parameters:
+	$self	RowSet	->	RowSet reference
+	RESULT	Number	<-	Number of columns
+************************************************************************************************/
+
+method "columnCount"($self)
+	
+	return (size of array($self{"_columns"}))
+	
+end method
+
+
+
+/************************************************************************************************
+	getColumn
+	
+	Purpose:	Returns the name of a column given an index. Columns are indexed in the order
+				they were declared on RowSet creation.
+	Require:	- $self is valid RowSet reference.
+				- $inIndex is in the range 1..ColumnCount()
+	Promise:	If the index is valid, the corresponding column name is returned.
+	Errors:		Invalid column index if $inIndex < 1 or $inIndex > ColumnCount()
+	
+	Parameters:
+	$self		RowSet	->	RowSet reference
+	$inIndex	Number	->	Index of column name to retrieve
+	RESULT		String	<-	Column name
+************************************************************************************************/
+
+method "getColumn"($self; $inIndex)
+	
+	if (($inIndex < 1) | ($inIndex > size of array($self{"_columns"})))
+		throw("RowSet: invalid column index.")
+	else
+		return ($self{"_columns"}{$inIndex})
+	end if
+	
+end method
+
+
+
+/************************************************************************************************
+	getColumnSource
+	
+	Purpose:	Returns the data source of a column given an index or a name.
+				Columns are indexed in the order they were declared on RowSet creation.
+	Require:	- $self is valid non-cached, selection-based RowSet reference.
+				- $inColumn is a number in the range 1..columnCount() or a valid column name
+	Promise:	If the column index/name is valid, the corresponding column data source
+	 			is returned. The data source will be a field pointer or text column expression.
+	Errors:		Invalid RowSet if data source is not a selection.
+				Invalid column index if $inColumn < 1 or $inColumn > columnCount(),
+				invalid column name if $inColumn is not a valid name.
+	
+	Parameters:
+	$self		RowSet			->	RowSet reference
+	$inColumn	Number | String	->	Index of column or column name from which to retrieve
+	RESULT		Pointer | Text	<-	Column data source
+************************************************************************************************/
+
+method "getColumnSource"($self; $inColumn)
+	
+	if ($self{"_dataSource"} # "_selection")
+		throw("RowSet: invalid RowSet data source")
+	end if
+	
+	if (type($inColumn) = 9) | (type($inColumn) = 1)  // longint or real
+		$inColumn := getColumn($self; $inColumn)
+	else
+		if (not(collection has($self{"_columnMap"}; $inColumn)))
+			throw('RowSet: invalid column name: "$inColumn"')
+		end if
+	end if
+	
+	return ($self{"_columnMap"}{$inColumn})
+	
+end method
+
+
+
+/************************************************************************************************
+	findColumn
+	
+	Purpose:	Returns the index of a column given a name. Columns are indexed in the order
+				they were declared on RowSet creation.
+	Require:	$self is valid RowSet reference.
+	Promise:	If the column name is valid, the corresponding column index is returned,
+				otherwise zero is returned.
+	Errors:		None
+	
+	Parameters:
+	$self		RowSet	->	RowSet reference
+	$inColumn	String	->	Name of column to get index for
+	RESULT		Longint	<-	Column index
+************************************************************************************************/
+
+method "findColumn"($self; $inColumn)
+	
+	if (not(collection has($self{"_columnMap"}; $inColumn)))
+		return (0)
+	else
+		return (find in array($self{"_columns"}; $inColumn))
+	end if
+	
+end method
+
+
+
+/************************************************************************************************
+	findRow
+	
+	Purpose:	Returns the index of the row whose column contains the given data.
+	Require:	$self is valid RowSet reference, $inColumn is a valid column name.
+	Promise:	If a row in the current RowSet contains a column with $inValue,
+				that row's index is returned and the cursor will be set to the matching row.
+				If no match is found, zero is returned and isAfterLast = True. Searching is done
+				linearly from the first row to the last.
+	Errors:		Invalid column name if $inColumn cannot be found
+	
+	Parameters:
+	$self		RowSet	->	RowSet reference
+	$inColumn	String	->	Name of column to get index for
+	$inValue	<any>	->	Value to search for
+	RESULT		Longint	<-	Row index
+************************************************************************************************/
+
+method "findRow"($self; $inColumn; $inValue)
+	
+	if (not(collection has($self{"_columnMap"}; $inColumn)))
+		throw('RowSet: invalid column name: $inColumn')
+	end if
+	
+	// If using array storage, it is VASTLY more efficient to do a find in array
+	if ($self{"_dataSource"} = "_array")
+		$index := find in array($self{"_columnMap"}{$inColumn}; $inValue)
+		
+		if ($index <= 0)
+			return (0)
+		else
+			gotoRow($self; $index)
+			return ($index)
+		end if
+	else
+		beforeFirst($self)
+		
+		while (next($self))
+			if (getData($self; $inColumn) = $inValue)
+				return ($self{"_index"})
+			end if
+		end while
+	end if
+	
+	return (0)
+	
+end method
+
+
+
+/************************************************************************************************
+	getData
+	
+	Purpose:	Retrieve data from the current row of a RowSet.
+	Require:	$self is valid RowSet reference.
+	Promise:	If $inColumn is a number, the $inColumn'th column's data will be retrieved,
+				according to the order in which the columns were declared in the column map
+				when the RowSet was created.
+				If $inColumn is text, the named column's data will be retrieved.
+	Errors:		- Invalid column name if the given column cannot be found
+				- Expected number or text if $inColumn is the wrong type
+	
+	Parameters:
+	$self		RowSet		->	RowSet reference
+	$inColumn	Number/Text	->	Column index/name to retrieve data from
+	RESULT		<any>		<-	Column data
+************************************************************************************************/
+
+method "getData"($self; $inColumn)
+	
+	$type := type($inColumn)
+	
+	case of
+		:(($type = Is Longint) | ($type = Is Real))
+			if (($inColumn < 1) | ($inColumn > size of array($self{"_columns"})))
+				throw('RowSet: invalid column index: $inColumn.')
+			else
+				return ($self{"_rowData"}{$self{"_columns"}{$inColumn}})
+			end if
+			
+		:($type = Is Text)
+			if (collection has($self{"_rowData"}; $inColumn))
+				return ($self{"_rowData"}{$inColumn})
+			else
+				throw("RowSet: invalid column name.")
+			end if
+	else
+		throw('RowSet: expected a numeric or text argument for $inColumn.')
+	end case
+	
+end method
+
+
+
+/************************************************************************************************
+	gotoRow
+	
+	Purpose:	Goes directly to a row within the RowSet and makes its data current.
+	Require:	$self is valid RowSet reference.
+	Promise:	If $inRow is positive and less than getEnd(), the cursor
+				is moved to the given row with respect to the beginning of the record set.
+				
+				If $inRow is negative, the cursor is positioned relative to the end of the
+				RowSet. For example, -1 would position the cursor on the last row, -2 on
+				the next to last row, and so on.
+				
+				If an attempt is made to position the row beyond the first/last row,
+				the cursor will be left just before/after the first/last row.
+				
+				gotoRow(1) is equivalent to calling first(). gotoRow(-1) is equivalent to
+				calling last().
+	Errors:		None
+	
+	Parameters:
+	$self	RowSet	->	RowSet reference
+	$inRow	Number	->	Index of row to make current
+	RESULT	Boolean	<-	True if set to a valid row, false if not
+************************************************************************************************/
+
+method "gotoRow"($self; $inRow)
+	
+	c_longint($index)
+	$valid := true
+	
+	if ($inRow >= 0)
+		if ($inRow > $self{"_end"})
+			$index := $self{"_end"} + 1
+			$valid := false
+		else
+			$index := $inRow
+			$valid := $index >= $self{"_start"}
+			
+			if (not($valid))
+				$index := kRow_BeforeFirst
+			end if
+		end if
+	else
+		$index := $self{"_end"} + $inRow + 1
+		
+		if ($index < $self{"_start"})
+			$index := kRow_BeforeFirst
+			$valid := false
+		end if
+	end if
+	
+	$self{"_index"} := $index
+	call method($self{"_dataSource"} + "getRow"; $self)
+	return ($valid)
+	
+end method
+
+
+
+/************************************************************************************************
+	move
+	
+	Purpose:	Moves the cursor relative to its current position in the RowSet.
+	Require:	$self is valid RowSet reference.
+	Promise:	The cursor will be at currentRow() + $inRows. If an attempt is made to position
+				the row beyond the first/last row, the cursor will be left just before/after the 
+				first/last row. move(1) is equivalent to next(). move(-1) is equivalent to 
+				previous().
+	Errors:		None
+	
+	Parameters:
+	$self	RowSet	->	RowSet reference
+	$inRow	Number	->	Index of row to make current
+	RESULT	Boolean	<-	True if moving to a valid row, false if not
+************************************************************************************************/
+
+method "move"($self; $inRows)
+	
+	return (gotoRow($self; $self{"_index"} + $inRows))
+	
+end method
+
+
+
+/************************************************************************************************
+	beforeFirst
+	
+	Purpose:	Moves the cursor just before the first row in the RowSet.
+	Require:	$self is valid RowSet reference.
+	Promise:	next() will return the first row of the RowSet if there is one,
+				isBeforeFirst() == True.
+	Errors:		None
+	
+	Parameters:
+	$self	RowSet	->	RowSet reference
+************************************************************************************************/
+
+method "beforeFirst"($self)
+	
+	$self{"_index"} := kRow_BeforeFirst
+	call method($self{"_dataSource"} + "getRow"; $self)
+	
+end method
+
+
+
+/************************************************************************************************
+	afterLast
+	
+	Purpose:	Moves the cursor to just after the last row in the RowSet.
+	Require:	$self is valid RowSet reference.
+	Promise:	previous() will return the last row of the RowSet if there is one,
+				isAfterLast() == True.
+	Errors:		None
+	
+	Parameters:
+	$self	RowSet	->	RowSet reference
+************************************************************************************************/
+
+method "afterLast"($self)
+	
+	$self{"_index"} := $self{"_end"} + 1
+	call method($self{"_dataSource"} + "getRow"; $self)
+	
+end method
+
+
+
+/************************************************************************************************
+	first
+	
+	Purpose:	Moves the cursor to the first row in the RowSet.
+	Require:	$self is valid RowSet reference.
+	Promise:	If rowCount() > 0, isFirst() = True and RESULT = True
+	Errors:		None
+	
+	Parameters:
+	$self	RowSet	->	RowSet reference
+	RESULT	Boolean	<-	True if it succeeded
+************************************************************************************************/
+
+method "first"($self)
+	
+	return (gotoRow($self; 1))
+	
+end method
+
+
+
+/*************************************************************************************************
+	last
+	
+	Purpose:	Moves the cursor to the last row in the RowSet.
+	Require:	$self is valid RowSet reference.
+	Promise:	True if there are rows in the RowSet and currentRow() = CountRows().
+	Errors:		None
+	
+	Parameters:
+	$self	RowSet	->	RowSet reference
+	RESULT	Boolean	<-	True if rows in the RowSet, false if not
+*************************************************************************************************/
+
+method "last"($self)
+	
+	return (gotoRow($self; -1))
+	
+end method
+
+
+
+/*************************************************************************************************
+	isBeforeFirst
+	
+	Purpose:	Determines if the cursor is currently before the first row
+				in the RowSet.
+	Require:	$self is valid RowSet reference.
+	Promise:	True if currentRow() = 0, else false.
+	Errors:		None
+	
+	Parameters:
+	$self	RowSet	->	RowSet reference
+	RESULT	Boolean	<-	True if current row is before first row
+*************************************************************************************************/
+
+method "isBeforeFirst"($self)
+	
+	return ($self{"_index"} < $self{"_start"})
+	
+end method
+
+
+
+/*************************************************************************************************
+	isFirst
+	
+	Purpose:	Determines if the cursor is currently at the first row in the RowSet.
+	Require:	$self is valid RowSet reference.
+	Promise:	If there are rows in the RowSet, RESULT = (currentRow() = 1).
+				If there are no rows in the RowSet, RESULT = false.
+	Errors:		None
+	
+	Parameters:
+	$self	RowSet	->	RowSet reference
+	RESULT	Boolean	<-	True if current row is first
+*************************************************************************************************/
+
+method "isFirst"($self)
+	
+	return ($self{"_index"} = $self{"_start"})
+	
+end method
+
+
+
+/*************************************************************************************************
+	isLast
+	
+	Purpose:	Determines if the cursor is currently at the last row
+				in the RowSet.
+	Require:	$self is valid RowSet reference.
+	Promise:	If there are rows in the RowSet, RESULT = currentRow() = getEnd().
+				If there are no rows in the RowSet, RESULT = false.
+	Errors:		None
+	
+	Parameters:
+	$self	RowSet	->	RowSet reference
+	RESULT	Boolean	<-	True if current row is last
+*************************************************************************************************/
+
+method "isLast"($self)
+	
+	if ($self{"_end"} > 0)
+		return ($self{"_index"} = $self{"_end"})
+	else
+		return (false)
+	end if
+	
+end method
+
+
+
+/*************************************************************************************************
+	isAfterLast
+	
+	Purpose:	Determines if the cursor is currently after the last row
+				in the RowSet.
+	Require:	$self is valid RowSet reference.
+	Promise:	If there are rows in the RowSet, RESULT = currentRow() > $ioResult{"_end"}.
+				If there are no rows in the RowSet, RESULT = true.
+	Errors:		None
+	
+	Parameters:
+	$self	RowSet	->	RowSet reference
+	RESULT	Boolean	<-	True if cursor is after last row
+*************************************************************************************************/
+
+method "isAfterLast"($self)
+	
+	if ($self{"_end"} > 0)
+		return ($self{"_index"} > $self{"_end"})
+	else
+		return (true)
+	end if
+	
+end method
+
+
+
+/*************************************************************************************************
+	next
+	
+	Purpose:	Moves the cursor to the next row in the RowSet. A RowSet is initially
+				positioned before the first row, so the first call to next() will return the first
+				row (if there is one).
+	Require:	$self is valid RowSet reference.
+	Promise:	RESULT = true if there is a next row in the RowSet.
+	Errors:		None
+	
+	Parameters:
+	$self	RowSet	->	RowSet reference
+	RESULT	Boolean	<-	True if there is a next row
+*************************************************************************************************/
+
+method "next"($self)
+	
+	case of
+		:($self{"_count"} = 0)
+			return (false)
+			
+		:($self{"_index"} < $self{"_start"})
+			return (gotoRow($self; $self{"_start"}))
+	
+	 	:($self{"_index"} <= $self{"_end"})
+			return (gotoRow($self; $self{"_index"} + 1))
+	else
+		return (false)
+	end case
+	
+end method
+
+
+
+/*************************************************************************************************
+	previous
+	
+	Purpose:	Moves the cursor to the previous row in the RowSet.
+	Require:	$self is valid RowSet reference.
+	Promise:	RESULT = true if there is a previous row in the RowSet.
+	Errors:		None
+	
+	Parameters:
+	$self	RowSet	->	RowSet reference
+	RESULT	Boolean	<-	True if there is a previous row
+*************************************************************************************************/
+
+method "previous"($self)
+	
+	case of
+		:($self{"_start"} = 0)
+			return (false)
+			
+		:($self{"_index"} > $self{"_end"})
+			return (gotoRow($self; $self{"_end"}))
+			
+		:($self{"_index"} >= $self{"_start"})
+			return (gotoRow($self; $self{"_index"} - 1))
+	else
+		return (false)
+	end case
+	
+end method
+
+
+
+/*************************************************************************************************
+	currentRow
+	
+	Purpose:	Returns the position of the cursor in the RowSet.
+	Require:	$self is valid RowSet reference.
+	Promise:	If isBeforeFirst() = True, RESULT = kRow_BeforeFirst. If isAfterLast() = True,
+				RESULT = getEnd() + 1.
+	Errors:		None
+	
+	Parameters:
+	$self	RowSet	->	RowSet reference
+	RESULT	Number	<-	Current row index
+*************************************************************************************************/
+
+method "currentRow"($self)
+	
+	return ($self{"_index"})
+	
+end method
+
+
+
+/*************************************************************************************************
+	sourceRowCount
+	
+	Purpose:	Returns the number of rows in the RowSet data source.
+	Require:	$self is valid RowSet reference.
+	Promise:	RESULT >= 0
+	Errors:		None
+	
+	Parameters:
+	$self	RowSet	->	RowSet reference
+	RESULT	Number	<-	Number of rows in RowSet
+*************************************************************************************************/
+method "sourceRowCount"($self)
+	
+	return ($self{"_sourceCount"})
+	
+end method
+
+
+
+/*************************************************************************************************
+	rowCount
+	
+	Purpose:	Returns the number of rows in the RowSet. This may be a subset of the
+				rows in the data source.
+	Require:	$self is valid RowSet reference.
+	Promise:	RESULT >= 0
+	Errors:		None
+	
+	Parameters:
+	$self	RowSet	->	RowSet reference
+	RESULT	Number		<-	Number of rows in RowSet
+*************************************************************************************************/
+method "rowCount"($self)
+	
+	return ($self{"_count"})
+	
+end method
+
+
+
+/*************************************************************************************************
+	getStart
+	
+	Purpose:	Returns the starting index of the row subset within the data source.
+	Require:	$self is valid RowSet reference.
+	Promise:	RESULT >= 0
+	Errors:		None
+	
+	Parameters:
+	$self	RowSet	->	RowSet reference
+	RESULT	Number	<-	Index into rows of data source
+*************************************************************************************************/
+method "getStart"($self)
+	
+	return ($self{"_start"})
+	
+end method
+
+
+
+/*************************************************************************************************
+	getEnd
+	
+	Purpose:	Returns the ending index of the row subset within the data source.
+	Require:	$self is valid RowSet reference.
+	Promise:	RESULT >= 0
+	Errors:		None
+	
+	Parameters:
+	$self	RowSet	->	RowSet reference
+	RESULT	Number	<-	Index into rows of data source
+*************************************************************************************************/
+method "getEnd"($self)
+	
+	return ($self{"_end"})
+	
+end method
+
+
+
+/*************************************************************************************************
+	maxRows
+	
+	Purpose:	Returns the maximum number of rows in the RowSet.
+	Require:	$self is valid RowSet reference.
+	Promise:	RESULT = the max rows passed into the RowSet constructor. RESULT >= 0 means
+				there is a limit of that many rows, RESULT = -1 means no limit.
+	Errors:		None
+	
+	Parameters:
+	$self	RowSet	->	RowSet reference
+	RESULT	Number	<-	Maximum number of rows in RowSet
+*************************************************************************************************/
+
+method "maxRows"($self)
+	
+	return ($self{"_maxRows"})
+	
+end method
+
+
+
+/*************************************************************************************************
+	sort
+	
+	Purpose:	Sorts an array-based RowSet.
+	Require:	$self is valid RowSet reference, $inSortMap is a semicolon-delimited list
+				of columns to sort in the form name:order, where order is < > =.
+	Promise:	The RowSet data will be sorted according to the sort map.
+	Errors:		Throws if the RowSet is not array-based.
+	
+	Parameters:
+	$self		RowSet	->	RowSet reference
+	$inSortMap	Text	->	Specifies columns to sort and sort order
+*************************************************************************************************/
+
+method "sort"($self; $inSortMap)
+		
+	if ($self{"_dataSource"} # "_array")
+		throw("RowSet: the sort command can only be applied to array-based RowSets")
+	end if
+	
+	if ($inSortmap = "")
+		throw("RowSet: empty sort map")
+	else
+		array text($columnsUsed; 0)
+		$command := ""
+		
+		array text($columns; 0)
+		$columnCount := split string($inSortmap; ";"; $columns; false)
+		c_text($dir)
+		
+		for ($i; 1; $columnCount)
+			if ($columns{$i} # "")
+				$columnName := slice string($columns{$i}; ":"; $dir)
+				
+				// Validate the column name and direction
+				case of
+					:($columnName = "")
+						throw('RowSet: empty column name in column $i of sort map')
+						
+					:($dir = "")
+						throw('RowSet: empty sort direction in column $i of sort map')
+						
+					:($columnName !~ $self{"_columns"})
+						throw('RowSet: invalid column name in column $i of sort map: ' + $columnName)
+						
+					:($columnName ~ $columnsUsed)
+						throw('RowSet: duplicate column name in column $i of sort map: ' + $columnName)
+						
+					:($dir !~ "<>=")
+						throw('RowSet: invalid sort direction "$dir" in column $i of sort map')
+				else
+					$command += ";$self'{'\"_columnMap\"'}{'\"{0}\"'}';{1}" %% ($columnName; $dir)
+					append to array($columnsUsed; $columnName)
+				end case
+			end if
+		end for
+		
+		// Any columns not included in the sort map will be sorted neutrally
+		for each ($self{"_columns"}; $col)
+			if ($col !~ $columnsUsed)
+				$command += ";$self'{'\"_columnMap\"'}{'\"{0}\"'}';=" %% ($col)
+			end if
+		end for each
+		
+		execute("multisort arrays({0})" %% substring($command; 2))
+	end if
+	
+end method
+
+
+
+/*************************************************************************************************
+	getTimeout
+	
+	Purpose:	Returns a RowSet's timeout value in minutes.
+	Require:	$self is valid RowSet reference.
+	Promise:	RESULT >= 0.
+	Errors:		None
+	
+	Parameters:
+	$self	RowSet		->	RowSet reference
+	RESULT	Timestamp	<-	RowSet timeout
+*************************************************************************************************/
+
+method "getTimeout"($self)
+	
+	return ($self{"_timeout"})
+	
+end method
+
+
+
+/*************************************************************************************************
+	setTimeout
+	
+	Purpose:	Sets a RowSet's timeout in minutes.
+	Require:	$self is valid RowSet reference.
+	Promise:	getTimeout = $inTimeout
+	Errors:		None
+	
+	Parameters:
+	$self		RowSet	->	RowSet reference
+	$inTimeout	Number	->	Timeout in minutes
+*************************************************************************************************/
+
+method "setTimeout"($self; $inTimeout)
+	
+	$self{"_timeout"} := max of ($inTimeout; 0)
+	
+end method
+
+
+
+/*************************************************************************************************
+	timedOut
+	
+	Purpose:	Returns whether or not a RowSet has timed out.
+	Require:	$self is valid RowSet reference
+	Promise:	
+	Errors:		None
+	
+	Parameters:
+	$self		RowSet	->	RowSet reference
+	$inTimeout	Number	->	Timeout in minutes
+*************************************************************************************************/
+
+method "timedOut"($self)
+	
+	// A timeout <= 0 means never
+	$timeout := $self{"_timeout"}
+	
+	if ($timeout <= 0)
+		return (false)
+	else
+		c_real($diff)
+		$diff := timestamp difference(timestamp; $self{"_timestamp"})
+		
+		// timestamp difference is in seconds, timeout is in minutes, so multiply timeout by 60
+		return ($diff > ($timeout * 60))
+	end if
+	
+end method
+
+
+
+/*************************************************************************************************
+	persistent
+	
+	Purpose:	Returns a reference to a persistent RowSet collection.
+	Require:	Nothing
+	Promise:	RESULT = a reference to the RowSet created with the name $inName, or zero
+				if no such persistent RowSet exists.
+	Errors:		None
+	
+	Parameters:
+	$inName		String	->	RowSet name
+	RESULT		RowSet	<-	The named persistent RowSet
+*************************************************************************************************/
+
+method "persistent"($inName)
+	
+	$rs := self{"_persistent"}{$inName}
+	
+	// If it doesn't exist, $rs will be an empty string instead of a collection reference
+	if (type($rs) = is text)
+		return(0)
+	else
+		return($rs)
+	end if
+	
+end method
+
+
+
+/*************************************************************************************************
+	clearPersistent
+	
+	Purpose:	Clear a persistent RowSet collection.
+	Require:	Nothing
+	Promise:	All memory used by the RowSet will be reclaimed and persistent($inName) = 0,
+				if such a RowSet exists. Otherwise nothing happens.
+	Errors:		None
+	
+	Parameters:
+	$inName		String	->	RowSet name
+*************************************************************************************************/
+
+method "clearPersistent"($inName)
+	
+	while (semaphore("$RowSet.clearPersistent"))
+		// wait
+	end while
+	
+	$rs := self{"_persistent"}{$inName}
+	
+	// If it doesn't exist, $rs will be an empty string instead of a collection reference
+	if (type($rs) # 2)  // Is Text
+		deep clear collection($rs)
+		delete collection item(self{"_persistent"}; $inName)
+	end if
+	
+	clear semaphore("$RowSet.clearPersistent")
+	
+end method
+
+
+
+/*************************************************************************************************
+	getPersistentList
+	
+	Purpose:	Get a list of the persistent RowSet collections.
+	Require:	$outList is a Text/String Array
+	Promise:	$outList will receive a non-sorted list of the persistent RowSet names.
+	Errors:		If $outList is not a Text/String Array
+	
+	Parameters:
+	$outNames	Text/String Array	<-	RowSet names
+*************************************************************************************************/
+
+method "getPersistentList"(&$outList)
+	
+	get collection keys(self{"_persistent"}; $outList)
+	
+end method
+
+
+
+/*************************************************************************************************
+	dumpPersistent
+	
+	Purpose:	Dump information about the persistent RowSets.
+	Require:	Nothing.
+	Promise:	A pretty dump.
+	Errors:		None
+*************************************************************************************************/
+
+method "dumpPersistent"
+	
+	a4d.debug.writeDumpStyles
+	write("""
+<div class="a4d-debug">
+<table cellspacing="1">
+  <tr>
+    <td colspan="3" class="title">Persistent Rowsets</td>
+  </tr>
+  <tr>
+    <th>Name</th>
+	<th># Rows</th>
+	<th>Columns</th>""")
+	
+	$persistent := self{"_persistent"}
+	array text($keys; 0)
+	get collection keys($persistent; $keys)
+	
+	for each ($keys; $key)
+		write('''
+  <tr>
+    <td class="label">$key</td>
+	<td>$persistent{$key}{"_count"}</td>
+	<td>`join array($persistent{$key}{"_columns"}; ", "; 1; false; true)`</td>
+  </tr>''')
+	end for each
+	
+	write("\n</table>\n</div>\n")
+
+end method
+
+
+
+/*************************************************************************************************
+	dump
+	
+	Purpose:	Produce a formatted dump of a RowSet's data.
+	Require:	$self is valid RowSet reference.
+	Promise:	A pretty dump.
+	Errors:		None
+	
+	Parameters:
+	$self			RowSet	->	RowSet reference
+	$inName			Text	->	Name of RowSet
+	$inShowType		Boolean	->	True to show column type
+*************************************************************************************************/
+
+method "dump"($self; $inName = ""; $inShowType = false)
+	
+	$numCols := size of array($self{"_columns"}) + 1
+	a4d.debug.writeDumpStyles
+	
+	if ($self{"_table"})
+		if ($self{"_dataSource"} = "_array")
+			$source := "cached selection"
+		else
+			$source := "selection"
+		end if
+	else
+		$source := "array"
+	end if
+	
+	$header := "RowSet{0}&nbsp;&nbsp;&nbsp;<span>[{1}-based]</span><br />\n" %% \\
+				(choose($inName # ""; ": " + $inName; ""); $source)
+				
+	$table := choose(nil($self{"_table"}); ""; ", table:[{0}]" %% table name($self{"_table"}))
+	
+	$persistent := choose($self{"_isPersistent"}; ", persistent:\"{0}\"" %% ($self{"_name"}); "")
+	
+	$header += "<span>source rows:{0,number}, rows:{1,number}, start:{2,number}, end:{3,number}{4}{5}</span>" %% \\
+				($self{"_sourceCount"}; $self{"_count"}; $self{"_start"}; $self{"_end"}; $table; $persistent)
+				
+	write('''
+<div class="a4d-debug">
+<table cellspacing="1">
+  <tr>
+    <td colspan="$numCols" class="title">$header</td>
+  </tr>
+  <tr>
+    <th class="num">#</th>\n''')
+	
+	c_longint($i)
+	
+	for ($i; 1; $numCols -1)
+		write('<th>`mac to html($self{"_columns"}{$i}; *)`')
+		
+		if ($inShowType)
+			write("<br />\n<span style=\"font-weight: normal\">" + type descriptor($self{"_columnMap"}{$self{"_columns"}{$i}}) + "</span>")
+		end if
+		
+		write("</th>\n")
+	end for
+	
+	write("</tr>\n")
+	
+	// Save the current row so we can restore it later
+	$current := $self{"_index"}
+	
+	if ($self{"_count"} > 0)
+		beforeFirst($self)
+		$row := getRow($self)
+	
+		while (next($self))
+			$class := choose($self{"_index"} = $current; "current"; "")
+			write('  <tr>\n    <td class="label num $class">$self{"_index"}</td>\n')
+		
+			for ($i; 1; $numCols - 1)
+				write('    <td>`mac to html(string($row{$self{"_columns"}{$i}}); *)`</td>\n')
+			end for
+		
+			write("  </tr>\n")
+		end while
+	else
+		write('<tr><td colspan="$numCols">[Empty RowSet]</td></tr>\n')
+	end if
+	
+	write("</table>\n</div>\n")
+	
+	// Restore current row
+	gotoRow($self; $current)
+
+end method
+
+
+
+/*
+	PRIVATE METHODS
+*/
+
+
+/*************************************************************************************************
+	__load__
+*************************************************************************************************/
+
+method "__load__"
+	
+	self{"_persistent"} := new global collection
+	
+end method
+
+
+
+
+/*************************************************************************************************
+	__unload__
+*************************************************************************************************/
+
+method "__unload__"
+	
+	deep clear collection(self{"_persistent"})
+	
+end method
+
+	
+	
+	
+/*************************************************************************************************
+	_new
+	
+	Purpose:	Create a new RowSet from any data source.
+	Require:	- Methods exists with the names ($inDataSource + "Init") and 
+				($inDataSource + "getRow").
+				- See the various newFrom<Source> methods.
+	Promise:	A fully constructed RowSet will be returned with the cursor positioned before
+				the first row in the set, and the "__class__" element set so we can use the RowSet
+				as an object reference.
+	Errors:		See the various NewFrom<Source> methods.
+			
+	Parameters:	
+	$inDataSource		Text				->	Prefix of methods to call to access data
+	$inMainTable		->[table]			->	Pointer to main table
+	$inSubset			Number/Batch/Text	->	Max number of rows/Batch with subset of source rows/'start:end'
+	$inRowCallback		Text				->	Code to execute for each row that is loaded
+	$inName				Text				->	Name of persistent RowSet, leave empty to make temporary
+	$inTimeout			Number				->	Timeout in minutes
+	RESULT				Collection			<-	A collection which can be used with other RowSet methods
+*************************************************************************************************/
+
+method "_new"($inDataSource; $inMainTable; $inSubset; $inRowCallback; $inName; $inTimeout)
+	
+	$persistent := length($inName) > 0
+	$self := choose($persistent; new global collection; new collection)
+	$self{"__class__"} := current library name
+	$self{"_timestamp"} := timestamp
+	$self{"_table"} := $inMainTable
+	$self{"_rowData"} := choose($persistent; new global collection; new collection)
+	$self{"_dataSource"} := $inDataSource
+	$self{"_relateOne"} := false
+	$self{"_rowCallback"} := $inRowCallback
+	$self{"_name"} := $inName
+	$self{"_isPersistent"} := $persistent
+	$self{"_timeout"} := $inTimeout
+	$self{"_count"} := 0
+	$self{"_sourceCount"} := 0
+	array text($self{"_columns"}; 0)
+	
+	// If $inSubset is a Batch, get the start/end indexes from that
+	case of
+		:(type($inSubset) = 2)  // text
+			$self{"_start"} := max of(num(slice string($inSubset; ":"; $end)); 1)
+			$self{"_end"} := max of(num($end); $self{"_start"})
+			$self{"_maxRows"} := 0  // zero means _normalize will set based on start/end
+			
+		:(is a collection($inSubset))
+			if ($inSubset{"__class__"} # "Batch")
+				throw ("RowSet: $inSubset is a collection but not a Batch")
+			end if
+		
+			$self{"_start"} := $inSubset{"start"}
+			$self{"_end"} := $inSubset{"end"}
+			$self{"_maxRows"} := 0  // zero means _normalize will set based on start/end
+			
+	else
+		// Set start and end to some defaults, they will be calculated later
+		$self{"_start"} := 1
+		$self{"_end"} := MAXLONG
+		$self{"_maxRows"} := $inSubset
+	end case
+	
+	$self{"_index"} := kRow_BeforeFirst
+	
+	if ($persistent)
+		// Make sure this operation is atomic, otherwise it is possible
+		// another process could try to access the persistent RowSet after
+		// it is cleared but before it is reset.
+		
+		while (semaphore("$RowSet.resetPersistent"; 30))
+			// do nothing
+		end while
+		
+		clearPersistent($inName)
+		self{"_persistent"}{$inName} := $self
+		
+		clear semaphore("$RowSet.resetPersistent")
+	end if
+	
+	return ($self)
+	
+end method
+
+
+
+/*************************************************************************************************
+	_normalize
+	
+	Normalize indexes and counts.
+	
+	$self			Collection	->	RowSet reference
+	$inSourceCount	Number	 	->	Row count in source data
+*************************************************************************************************/
+
+method "_normalize"($self; $inSourceCount)
+	
+	$self{"_sourceCount"} := $inSourceCount
+	$self{"_end"} := min of($self{"_end"}; $self{"_sourceCount"})
+	
+	if ($self{"_end"} > 0)
+		if ($self{"_maxRows"} > 0)
+			$self{"_end"} := min of($self{"_end"}; $self{"_start"} + $self{"_maxRows"} - 1)
+		end if
+		
+		$self{"_count"} := $self{"_end"} - $self{"_start"} + 1
+	else
+		$self{"_start"} := 0
+		$self{"_count"} := 0
+	end if
+	
+	// _maxRows = 0 means to set based on the count
+	if ($self{"_maxRows"} = 0)
+		$self{"_maxRows"} := $self{"_count"}
+	end if
+	
+end method
+
+
+
+// SELECTION DATA SOURCE
+
+/*************************************************************************************************
+	_selectionInit
+	
+	4D selection data source method for initializing the internal data storage.
+	
+	$self			Collection	->	RowSet reference
+	$inColumnMap	Text		->	Virtual column mapping
+*************************************************************************************************/
+
+method "_selectionInit"($self; $inColumnMap)
+	
+	/*
+		We want to capture all of the column names and column values, eliminating
+		any leading/trailing whitespace. We can't use split string because a column
+		expression might have semicolons. The pattern disects as follows:
+		
+		\s*				Skip zero or more leading whitespace characters
+		([^:]+?)		Capture everything (ungreedy) that is not whitespace or a colon
+		\s*				Skip zero or more trailing whitespace characters
+		:				Match the column:value separator
+		\s*				Skip zero or more leading whitespace characters
+		(?:				Start a non-capturing group
+		(?=`)			If the next subpattern starts with `
+		`\s*(.+?)\s*`	Do an ungreedy match of the text between ``, trimming and capturing it
+		|				If the subpattern does not start with `
+		([^;]+)			Capture everything up to trailing ; or EOL
+		)				End of non-capturing group
+		;?				Match ; or EOL
+	*/
+	
+	regex match all("/\s*([^:]+?)\s*:\s*(?:(?=`)`\s*(.+?)\s*`|([^;]+));?/"; $inColumnMap; $pairs)
+	
+	/*
+		At this point $pairs is a collection with a series of arrays, each with the elements:
+		
+			1 - column name
+			2 - column expression if present
+			3 - column field if present
+	*/
+
+	$table := $self{"_table"}
+	$self{"_columnMap"} := choose($self{"_isPersistent"}; new global collection; new collection)
+	c_text($column; $columnValue; $key)
+	
+	for each ($pairs; $key)
+		$column := $pairs{$key}{1}
+		
+		if ($column = "")
+			throw("RowSet: empty column name")
+		end if
+		
+		$columnValue := $pairs{$key}{2}
+				
+		if ($columnValue)
+			$self{"_columnMap"}{$column} := $columnValue
+		else
+			// The regex pattern leaves trailing whitespace on the field name, so trim it
+			$columnValue := right trim($pairs{$key}{3})
+			$fieldPtr := get field pointer($columnValue)
+			
+			if ($fieldPtr)
+				// If a field from a foreign table is included, assume we will need auto-relations
+				if (table($fieldPtr) # table($table))
+					$self{"_relateOne"} := true
+				end if
+				
+				$self{"_columnMap"}{$column} := $fieldPtr
+			else
+				throw('RowSet: invalid table/field reference: "$columnValue"')
+			end if
+		end if
+		
+		$self{"_columns"}{} := $column
+	end for each
+	
+	_normalize($self; records in selection($table->))
+
+end method
+
+
+
+/*************************************************************************************************
+	_loadDirectCachedSelection
+	
+	Load a cached selection directly using SELECTION TO ARRAY.
+	
+	$self			Collection	->	RowSet reference
+	$inColumnMap	Text		->	Virtual column mapping
+*************************************************************************************************/
+
+method "_loadDirectCachedSelection"($self; $inColumnMap)
+
+	// The strategy is to load the selection into a new array column map
+	// and swap the new map for the old map.
+	
+	$arrays := choose($self{"_isPersistent"}; new global collection; new collection)
+	
+	c_text($arrayName)
+	c_text($selectExec)
+	
+	$selectExec := 'selection range to array($self{"_start"};$self{"_end"};'
+
+	for each ($self{"_columns"}; $columnName)
+		$arrayName := "$arrays'{'\"{0}\"'}'" %% ($columnName)
+		$selectExec += "{0};{1};" %% (field name($self{"_columnMap"}{$columnName}; *); $arrayName)
+	end for each
+	
+	// If referencing foreign fields, turn many-to-one relations on
+	if ($self{"_relateOne"})
+		automatic relations(true; false)
+	end if
+	
+	// Replace the final ";" with ")" and execute
+	$selectExec[[-1]] := ")"
+	execute($selectExec)
+	
+	if ($self{"_relateOne"})
+		automatic relations(false; false)
+	end if
+	
+	clear collection($self{"_columnMap"})
+	$self{"_columnMap"} := $arrays
+	
+end method
+
+
+
+/*************************************************************************************************
+	_loadCachedSelectionByRow
+	
+	Load a cached selection row by row.
+	
+	$self			Collection	->	RowSet reference
+	$inColumnMap	Text		->	Virtual column mapping
+*************************************************************************************************/
+
+method "_loadCachedSelectionByRow"($self; $inColumnMap)
+
+	// At this point everything is set up. The trick is to create a collection
+	// which will contain the array data and iterate through the collection,
+	// filling the arrays.
+	
+	$arrays := choose($self{"_isPersistent"}; new global collection; new collection)
+	
+	// The first trick is to figure out the type of the arrays. If the column value
+	// is a field, we can determine that from the field information. If the column
+	// value is an expression, we can't heuristically figure that out. But we can
+	// get an empty row, which will execute the column expression, then get the types
+	// from the row data collection.
+	$row := _selectionGetRow($self)
+	c_longint($type; $fieldLength)
+	
+	for each ($self{"_columnMap"}; $column; $value)
+		// If the value is a field pointer, figure out what type of array to create
+		
+		if (type($value) = 23) // pointer
+			get field properties($value; $type; $length)
+		else
+			$type := type($row{$column})
+		end if
+		
+		case of
+			:($type = 0) // Is Alpha Field
+				array string($length; $arrays{$column}; 0)
+				
+			:($type = 2) // Is Text
+				array text($arrays{$column}; 0)
+				
+			:($type = 1) // Is Real
+				array real($arrays{$column}; 0)
+				
+			:($type = 8) // Is Integer
+				array longint($arrays{$column}; 0)
+				
+			:($type = 9) // Is Longint
+				array longint($arrays{$column}; 0)
+				
+			:($type = 4) // Is Date
+				array date($arrays{$column}; 0)
+				
+			:($type = 11) // Is Time
+				array longint($arrays{$column}; 0)
+				
+			:($type = 6) // Is Boolean
+				array boolean($arrays{$column}; 0)
+				
+			:($type = 3) // Is Picture
+				array picture($arrays{$column}; 0)
+		end case
+	end for each
+	
+	// Now we have the arrays set up, so iterate through the rows and get the data.
+	// Note we have to directly call _selectionGetRow(), because internally the
+	// data source is set to "_array", so we have to force a selection-based load.
+	// In addition we save the overhead of the next() method.
+	
+	$self{"_index"} := $self{"_start"}
+	
+	for ($i; $self{"_start"}; $self{"_end"})
+		_selectionGetRow($self)
+		
+		for each ($arrays; $column)
+			$arrays{$column}{} := $row{$column}
+		end for each
+		
+		++$self{"_index"}
+	end for
+	
+	$self{"_index"} := kRow_BeforeFirst
+	
+	// Now we have the array data, we can swap the selection-based columnMap
+	// with the array-based columnMap
+	clear collection($self{"_columnMap"})
+	$self{"_columnMap"} := $arrays
+	
+end method
+
+
+
+/*************************************************************************************************
+	_selectionGetRow
+	
+	4D selection data source method for fetching the current row data into
+	the RowSet{"_rowData"} collection.
+	
+	$self	->	Collection	RowSet reference
+	RESULT	<-	Collection	$self{"_rowData"}
+*************************************************************************************************/
+
+method "_selectionGetRow"($self)
+	
+	$table := $self{"_table"}
+	c_longint($index)
+	$index := $self{"_index"}
+	
+	case of
+		:($index = kRow_BeforeFirst)
+			first record($table->)
+			previous record($table->)
+			
+		:($index > $self{"_end"})
+			last record($table->)
+			next record($table->)
+			
+	else
+		goto selected record($table->; $index; $self{"_relateOne"})
+	end case
+	
+	c_longint($columns; $row)
+	$columns := $self{"_columnMap"}
+	$row := $self{"_rowData"}
+	
+	if ($self{"_rowCallback"})
+		execute($self{"_rowCallback"})
+	end if
+	
+	// Fill row collection
+	for each ($columns; $column; $value)
+		if (type($value) = 23) // pointer
+			$row{$column} := $value->
+		else
+			execute("$row{$column} := " + $value)
+		end if
+	end for each
+	
+	return ($row)
+	
+end method
+
+
+
+// ARRAY DATA SOURCE
+
+/*************************************************************************************************
+	_arrayInit
+	
+	Array data source method for initializing or getting the internal data storage.
+	
+	$self			Collection	->	RowSet reference
+	$inColumnMap	Text		->	Virtual column mapping
+*************************************************************************************************/
+
+method "_arrayInit"($self; $inColumnMap)
+	
+	// Because this method relies on global access to local variables,
+	// to be safe we will prefix all local variables with an underscore
+	// to decrease the chances of a name clash.
+	
+	array text($_columns; 0)
+	c_longint($_numColumns; $_i; $_size)
+	$_numColumns := split string($inColumnMap; ";:"; $_columns)
+	$self{"_columnMap"} := choose($self{"_isPersistent"}; new global collection; new collection)
+	c_text($_arrayName; $_columnName)
+	
+	$_size := -1
+	
+	for ($_i; 1; $_numColumns; 2)
+		$_columnName := trim($_columns{$_i})
+		$self{"_columns"}{} := $_columnName
+		$_arrayName := trim($_columns{$_i + 1})
+		
+		if ($_arrayName[[1]] = "$")
+			// Split the variable name from any indexes
+			execute("global({0})" %% slice string($_arrayName; "{"))
+		end if
+		
+		if ($_i = 1)
+			// Normalize the size of all arrays to the first one
+			execute("$_size := size of array({0})" %% $_arrayName)
+			_normalize($self; $_size)
+		end if
+		
+		$_exec := "copy array({0}; $self'{'\"_columnMap\"'}{'\"{1}\"'}'; {2,number,############}; {3,number,#############})" %% ($_arrayName; $_columnName; $self{"_start"}; $self{"_end"})
+		execute($_exec)
+	end for
+	
+	// Normalize the sizes of the arrays
+	for each ($self{"_columnMap"}; $_columnName)
+		resize array($self{"_columnMap"}{$_columnName}; $self{"_count"})
+	end for each
+	
+end method
+
+
+
+/*************************************************************************************************
+	_arrayGetRow
+	
+	Array data source method for fetching the current row data into
+	the RowSet{"_rowData"} collection.
+	
+	$self	->	Collection	RowSet reference
+	RESULT	<-	Collection	$self{"_rowData"}
+*************************************************************************************************/
+
+method "_arrayGetRow"($self)
+	
+	c_longint($index)
+	$index := $self{"_index"}
+	
+	if ($index > 0)
+		if ($index < $self{"_start"}) | ($index > $self{"_end"})
+			$index := 0
+		else
+			// The real array index is offset
+			$index := $index - $self{"_start"} + 1
+		end if
+	end if
+	
+	c_longint($columns; $row)
+	$columns := $self{"_columnMap"}
+	$row := $self{"_rowData"}
+	
+	// Fill row collection
+	for each ($columns; $column)
+		$row{$column} := $columns{$column}{$index}
+	end for each
+	
+	return ($row)
+	
+end method	
+
+
+end library

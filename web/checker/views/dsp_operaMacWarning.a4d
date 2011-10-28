@@ -1,0 +1,34 @@
+<% /*
+<fusedoc fuse="dsp_operaMacWarning.a4d" language="Active4D" specification="2.0">
+	<responsibilities>
+		I tell the user that Opera Mac < 8.5 is not optimal, and I give them a chance 
+		to continue to the home page.
+	</responsibilities>
+	<io>
+		<in>
+			<string name="$XFA_home" comments="Go here to continue" />
+		</in>
+	</io>	
+</fusedoc>
+*/ %>
+<div id="content">
+  <div id="checker">
+  
+    <h1>Browser warning</h1>
+	
+    <p>We have detected that you are using a version of Opera for Macintosh &lt; 8.5. While versions of Opera &lt; 8.5 will work with this site, due to some bugs there will be some display glitches. We <strong>strongly</strong> recommend that you upgrade to Opera 9.5+ (it is now free), or even better, use one of the following browsers 
+    which are certified for use with this site (click to go to the browser's download page):</p>
+	
+    <ul>
+      <li><a href="http://www.apple.com/safari/" target="_blank">Safari 3.0+</a></li>
+      <li><a href="http://www.mozilla.org/products/camino/" target="_blank">Camino 1.6+</a></li>
+      <li><a href="http://www.mozilla.org/products/firefox/" target="_blank">Firefox 3.0+</a></li>
+      <li><a href="http://www.omnigroup.com/applications/omniweb/" target="_blank">OmniWeb 5.7+</a></li>
+    </ul>
+	
+    <p>We recommend that you try again with one of the browsers listed above, or you may continue with Opera.</p>
+	
+    <p><a id="homeLink" href="<%=fusebox.makeURL($XFA_home)%>">Continue</a></p>
+	
+  </div>
+</div>

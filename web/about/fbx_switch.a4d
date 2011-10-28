@@ -1,0 +1,44 @@
+<% /*
+<fusedoc fuse="fbx_switch.a4d" language="Active4D" specification="2.0">
+	<responsibilities>
+		I am the switch statement that handles fuseactions in this circuit.
+		I delegate to the fuses responsible for handling a given fuseaction.
+	</responsibilities>
+</fusedoc>
+*/
+
+$fuseaction := $fusebox{"fuseaction"}
+$circuit := $fusebox{"circuit"}
+
+case of
+	:($fuseaction = "screencast")
+		include("screencast.a4d")
+	:($fuseaction = "source")
+		include("source.a4d")
+	:($fuseaction = "models")
+		include("models.a4d")
+	:($fuseaction = "how")
+		include("how.a4d")
+	:($fuseaction = "rgen")
+		include("rgen.a4d")
+	:($fuseaction = "over")
+		include("over.a4d")
+	:($fuseaction = "diff")
+		include("diff.a4d")
+	:($fuseaction = "relate")
+		include("relate.a4d")
+	:($fuseaction = "route")
+		include("route.a4d")
+	:($fuseaction = "rest")
+		include("rest.a4d")
+	:($fuseaction = "css")
+		include("rcss.a4d")
+	:($fuseaction = "ra4d")
+		include("ra4d.a4d")
+	:($fuseaction = "handleError")
+		include("views/dsp_errorHandler.a4d")
+		
+else
+	throw('Fusebox: I received a fuseaction called "$fusebox{"fuseaction"}" that the circuit "$fusebox{"circuit"}" does not have a handler for.')
+end case
+%>

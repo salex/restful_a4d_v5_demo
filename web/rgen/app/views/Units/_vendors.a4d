@@ -1,0 +1,46 @@
+<%
+$row := $vendors->getRow
+$alt := true
+%>
+
+
+
+<table cellspacing="0">
+	<tr class="column-heads">
+		
+			<td>Id</td>
+			<td>Name</td>
+			<td>Phone</td>
+			<td>Contact</td>
+
+		<td>Actions
+		
+		</td>
+	</tr>
+
+<%
+	while ($vendors->next)
+		$alt := not($alt)
+		$rowClass := choose($alt; "alt"; "")
+		%>
+		<tr class="<%$rowClass%>">
+			
+				<td><%=$row{"vendor.id"}%></td>
+				<td><%=$row{"vendor.name"}%></td>
+				<td><%=$row{"vendor.phone"}%></td>
+				<td><%=$row{"vendor.contact"}%></td>
+
+			<td>
+				
+				<a class="dlink-button" href="<%=rest.controller_path("vendors";$row{"vendor.id"})%>">Show</a>
+				
+				
+				<a class="dlink-button" href="<%=rest.edit_controller_path("vendors";$row{"vendor.id"})%>">Edit</a>
+				
+				
+				<%=delete_link("vendors";$row{"vendor.id"}) %>
+				
+			</td>
+		</tr>
+	<%end while%>
+</table>

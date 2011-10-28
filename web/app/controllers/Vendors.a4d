@@ -1,0 +1,75 @@
+<%		
+
+method "validRoute"($attributes)
+end method
+
+case of
+	:($action = "index")
+		$Vendors := Vendor.find_all($attributes)
+		include("../views/Vendors/index.a4d")
+	:($action = "show")
+		$Vendor := Vendor.find($attributes)
+
+		$address := Vendor.find_related("address";$attributes;$Vendor)
+
+		include("../views/Vendors/show.a4d")
+		
+	:($action = "new")
+		$Vendor := Vendor.new($attributes)
+		
+		
+
+		$address := Vendor.find_related("address";$attributes;$Vendor)
+
+		include("../views/Vendors/new.a4d")
+		
+	:($action = "create")
+		$result := Vendor.create($attributes)
+		if($result = "success")
+			session{"errmsg"} := "info:Vendor Created"
+			redirect(choose($attributes{"_referer"};$attributes{"_referer"};rest.controller_path("Vendors")))
+			
+		else
+			session{"errmsg"} := "Vendor NOT created. Reason: "+$result
+			redirect(choose($attributes{"_referer"};$attributes{"_referer"};rest.controller_path("Vendors")))
+		end if
+		
+	:($action = "edit")
+		$Vendor := Vendor.find($attributes)
+
+		$address := Vendor.find_related("address";$attributes;$Vendor)
+
+		include("../views/Vendors/edit.a4d")
+		
+	:($action = "update")
+		$result := Vendor.update($attributes)
+		if($result = "success")
+			session{"errmsg"} := "info:Vendor Updated"
+			redirect(rest.controller_path("Vendors";num($attributes{"id"})))
+		else
+			session{"errmsg"} := "Vendor NOT Updated. Reason: "+$result
+			redirect(rest.controller_path("Vendors";num($attributes{"id"})))
+		end if
+		
+	:($action = "destroy")
+		$result := Vendor.delete($attributes)
+		if($result = "success")
+			session{"errmsg"} := "info:Vendor Deleted"
+			redirect(choose($attributes{"_referer"};$attributes{"_referer"};rest.controller_path("Vendors")))
+		else
+			session{"errmsg"} := "Vendor NOT deleted. Reason: "+$result
+			redirect(choose($attributes{"_referer"};$attributes{"_referer"};rest.controller_path("Vendors";num($attributes{"id"}))))
+		end if
+		
+	:($action = "_test")
+		$Vendor := Vendor.find($attributes)
+		include("../views/Vendors/test.a4d")
+
+	:($action = "_ingredients")
+                    $ingredients := Vendor.find_related("ingredient";$attributes)
+                    include("../views/vendors/_ingredients.a4d")
+
+	else
+		Throw('Action: $action not found for controller Vendors')
+end case
+%>

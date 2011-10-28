@@ -1,0 +1,18 @@
+/*
+	Adm_vendors library
+
+*/
+
+library "Adm_vendors"
+
+
+
+method "testme"($attributes)
+	all records([vendors])
+	order by([vendors]; [vendors]id; >)  //TODO substitute order_by from $rest
+	$Adm_vendors := rest.build_rowset("Adm_vendor";$attributes)
+	return($Adm_vendors)
+end method
+
+end library
+

@@ -1,0 +1,102 @@
+<h1>Restful Active4D</h1>
+<%include("dlist.a4d")%>
+
+<div id="content-right" class="col-25 dpara"  >
+
+<h1>It&rsquo;s the libraries stupid!</h1>
+
+<p>That&rsquo;s the answer to a couple different questions:</p>
+
+<ul class="indent">
+	<li>Why are web frameworks so difficult to learn?</li>
+	<li>Why are web frameworks so powerful?</li>
+</ul>
+
+<p>Restful Active4D is nothing more than a few libraries that build on Active4D/Fuesbox libraries to create a Ruby on Rails like
+framework. You can almost think of it as a plugin for Active4D, in that it allow normal fusebox circuits to be mixed of Restful
+Active4d circuits.</p>
+
+<h1>Background</h1> 
+
+<p>While I have been using Active4D/Fusebox for about 6 years, I have had my problems with both.
+That problem is mainly using OPC (other people&rsquo;s code) - guess it is that stubbornness trait!</p>
+
+<p>I was introduced to programming in a required freshman engineering class in FORTRAN back in 1971. I soon discovered a GE
+timesharing system on campus that had BASIC. To me, it was easier to spend hours writing a BASIC program to help with homework than
+use a slide rule and screw up the decimal places (or cheaper to write a FORTRAN program that produced the CRC tables I needed rather
+than to buy a CRC tables book). I could not convince the Air Force to let me change my major from engineering to computer science, or
+whatever it was called in those days, and the Air Force decided I needed to be a navigator. I never worked a day in my life as an
+engineer, but longed to get my hands on a computer so I would not have to spend hours with a circular slide rule doing simple trig.
+</p>
+
+<p>The Air Force knew of my desires and gave me a part-time task of feeding a computer system that tracked flying events (e.g., How
+many times you threw Army Paratroopers out of the back of a C-130). That led to a close contact with the base computer office and
+a friend that actually had a computer science degree. He convinced me that I needed to get one of these new micro computers and in
+January 1978, I plucked down about $1200 bucks and bought Apple II, serial number #717. I guess that was a career changing event - but
+it took a while. I won&rsquo;t go through all the background, but I&rsquo;ve dabbled in computer languages from Ada to XSLT.</p>
+
+<p>One of the more frustrating things I&rsquo;ve tried to do lately is develop using the Ruby on Rails (RoR) framework. It&rsquo;s
+not that Ruby is a strange language - in fact it is a great language. The difficulty in using RoR is you use very little Ruby, you
+are mainly calling library methods where the Ruby is contained - in other words, you are using OPC. RoR has thousands of library
+calls and most have multiple options to allow them to do different tricks. I found myself spending hours trying to figure out how to
+do something with a library call rather then just writing code. In other words, a long learning curve using OPC.</p>
+
+<h1>Fusebox</h1>
+
+<p>Fusebox is one of those love/hate things, well maybe like/dislike. While I&rsquo;ve been using it for a while, it was only until
+recently that I discovered why like was not love. I, and probably most of you, are not using it as it was designed!</p>
+
+<p>In a post to the Active4D list back in August, <a href="http://old.nabble.com/Learning-Fusebox-td25201548.html#a25201548">Learning
+Fusebox</a>. Peter Jackobosoon pointed out that he answered his own question with the Active 4D wiki article on Fusebox. Now I remember
+the Simpsons example, but never used nested layouts. The Active4D demo also does not use nested layouts and that is what I patterned
+my projects on. I also never bought a book on Fusebox, so my background was almost strictly based on the demo code and my own way of
+doing things.</p>
+
+<p>Without using nested layouts, things like breadcrumbs become more of a problem than a solution! I&rsquo;ll get to this in a
+second, but my Active4D projects use many, often deeply nested relationships. Trying to use breadcrumbs to manage a relationship
+like:</p>
+<br /> 
+<code class="indent">companies < customers < projects < jobs < stages < citizen_stages > citizens</code>
+
+<p>becomes very messy.</p>
+
+<p>Again, because of not using Fusebox as designed (or a poor design of a fuse), things like XFA&rsquo;s go to the dislike column.
+There just seemed to be too much of a disconnect in defining something in the switch and trying to remember what you called it in the
+view, model or controller.</p>
+
+<h1>Active4D Community</h1> <p>Just a little more babbling before I get to REST, CRUD, etc.</p>
+
+<p>While I&rsquo;ve never personally met anyone in the community, I&rsquo;ve made some assumptions on the community:</p>
+
+<div class="indent"> <h1>About 90% use Active4D to place a web presence on a 4D client/server environment</h1>
+
+<p>Someone developed a client/server application years ago that the customer likes. Active4D is certainly a heck of a lot better
+approach to the web than using 4D tags.</p> <p>If you do not have a client/server application and are only using the web, why are you
+using 4D? I asked Aparajita once if he thought it would be possible to create a 4D adapter that could use RoR. His reply was something
+like: "Why would anyone want to do that! If you&rsquo;re just doing web stuff, why not use PostgreSQL and RoR or Python, PHP etc."</p>
+
+<p>Makes sense - why pay for 4D, then all the plugins that make it do what it should do out of the box, just to put up a dynamic web
+site!</p> 
+
+<h1>About 60% of the Active4D applications are shopping cart type applications</h1> 
+
+<p>My world is different. My applications were classic MIS (going back to another term to describe what we do) applications. While
+shopping cart and, lets say accounting type applications share a lot of things, MIS applications are not based on making something
+pretty so you can sell something. You don&rsquo;t want it to be ugly, but what is important is often very different.</p>
+
+<h1>The community is not big on sharing things</h1> 
+
+<p>While there have been attempts, code sharing is very limited. There is some idea or concept sharing, some
+solution sharing (tools that help accomplish things), but for the most part it is just a "I have a problem, can anyone help me" (and
+hope Aparajita replies if no one else does) type list.</p>
+
+</div>
+
+<p>For these reasons, my little investment in time to create Restful Active4D may be of little use to the community, but then I
+don&rsquo;t have anything better to do. Some may find it useful on new projects because of its "generate" function; if not the code,
+maybe at least the concepts.</p>
+
+<h1></h1><p>Enough of this, on to <a href="/about/rest">Rest and CRUD</a>.</p>
+
+
+</div>

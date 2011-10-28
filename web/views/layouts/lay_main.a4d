@@ -1,0 +1,67 @@
+<% /*
+<fusedoc fuse="lay_main.a4d" language="Active4D" specification="2.0">
+	<responsibilities>
+		I am the master display layout. I assemble all of the pieces
+		of the page together.
+	</responsibilities>
+</fusedoc>
+*/
+
+include("dsp_xhtmlHeader.a4d")
+%>
+<div id="container" class="col-32">
+  <!-- begin masthead -->
+  
+  <% include("dsp_masthead.a4d") %>
+  
+  <!-- end masthead -->
+  
+  <!-- begin navbar -->
+  
+  <% include("dsp_navbar.a4d") %>
+
+  <!-- end navbar -->
+  
+  <!-- begin sidebars -->
+
+  <% include("dsp_sidebars.a4d") %>
+  
+  <!-- end sidebars -->
+	
+  <!-- begin content -->
+  <div id="content" class="box">
+<%
+if((defined($error)) & (not(collection has($attributes;"error"))))
+	$attributes{"error"} := $error
+end if
+if(collection has($attributes;"error")&(session{"errmsg"} = ""))
+	$error := $attributes{"error"}
+else
+	$error := session{"errmsg"}
+end if
+if (session has("errmsg"))
+	session{"errmsg"} := ""
+end if
+if ($error # "") 
+	if(position("info:";$error)>0)
+		$msg := '<div style="padding:4px;color:green;border:4px solid green;background:white;text-align:center;font-size:1.5em" ><p style="margin:2px;color:green;font-size:1.3em">'+substring($error;6)+'</p></div>'
+	else
+		$msg := '<div style="padding:4px;color:red;border:4px solid red;background:white;text-align:center;font-size:1.5em"><p style="margin:2px;color:red;font-size:1.3em">'+$error+'</p></div>'
+	end if
+	 write($msg)
+end if
+%>
+	<% write($fusebox{"layout"}) %>
+
+	<!-- end content -->
+	<div style="clear:both"></div>
+
+  </div>
+  <!-- begin footer -->
+
+  <% include("dsp_footer.a4d") %>
+  
+  <!-- end footer -->
+</div>
+</body>
+</html>

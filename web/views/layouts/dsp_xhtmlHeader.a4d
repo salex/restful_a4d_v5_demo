@@ -1,0 +1,25 @@
+<% /*
+<fusedoc fuse="dsp_xhtmlHeader.a4d" language="Active4D" specification="2.0">
+	<responsibilities>
+		I display a header for an XHTML 4.01 Transitional page.
+	</responsibilities>
+</fusedoc>
+*/ %>
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN"
+  "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
+<html xmlns="http://www.w3.org/1999/xhtml" xml:lang="en" lang="en">
+<head>
+
+<!-- Put custom static header stuff here -->
+
+<meta http-equiv="Content-Type" content="text/html; charset=iso-8859-15" />
+
+<link rel="stylesheet" type="text/css" href="/css/main.css" />
+<link rel="icon" type="image/gif" href="/images/favicon.gif" />
+
+<!-- End custom static header stuff -->
+
+<% fusebox.head.write %>
+</head>
+<body>
+

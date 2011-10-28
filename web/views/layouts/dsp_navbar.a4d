@@ -1,0 +1,8 @@
+<div class="dnav">
+	<div><a class="<% =choose($circuit = "root";"set";"")%>" href="<%='/root/main'%>">Home</a></div>
+	<div><a class="<% =choose($circuit = "vendors";"set";"")%>" href="<%=rest.controller_path("vendors")%>">Vendors</a></div>
+	<div><a class="<% =choose($circuit = "ingredients";"set";"")%>" href="<%=rest.controller_path("ingredients")%>">Ingredients</a></div>
+	<div><a class="<% =choose($circuit = "units";"set";"")%>" href="<%=rest.controller_path("units")%>">Units</a></div>
+	<div><a class="<% =choose($circuit = "rgen";"set";"")%>" href="/rgen/main">Rgen</a></div>
+	<br class="dclear" />
+</div>

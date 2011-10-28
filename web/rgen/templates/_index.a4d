@@ -1,0 +1,85 @@
+<%$bq := $filterQuery+"pbst"%>
+<_esc_
+// Make the base query string for the edit links
+$baseQuery := a4d.web.collectionItemsToQuery($attributes; "<%=$bq%>")
+$batch := $<%=$controller%>{"batch"}
+_esc_>
+
+<div class="dtable">
+	<div class="dactions">
+		<strong><%=$controller%></strong>
+		<%if($attributes{"main_add"})%>
+		<a class="dlink-button" href="<_esc_=rest.new_controller_path("<%=$controller%>") _esc_>"> New <%=$model%></a>
+		<%end if%>
+
+		<%$filterBlock := ""
+		if(defined($filter))%>
+			<form name="form"  class="dfilter" action="<_esc_=rest.controller_path("<%=$controller%>")_esc_>" method="get" >
+		<%	
+			$temp := """<field>: <_esc_=html.text_field_tag("ftr_<field>";$attributes{"ftr_<field>"};html.opt(":size => 10"))_esc_>"""
+			split string($filter;";";$filterArray )
+			for each ($filterArray; $value; $index)
+				$field := capitalize(replace string($value;"ftr_";""))
+				array text($re;0) // regex array
+				array text($rp;0) // replace array
+				// set the reqex array
+				$re{} := "|<field>|"  // object => convert :{ to ;new collection(
+				//set the replacement array
+				$rp{} := $field
+				regex replace($re; $temp; $rp; $results)
+				$filterBlock += $results
+			end for each
+			write($filterBlock)%>
+			
+				 <input name="ftr" type="submit" value="Filter" />
+				<_esc_if($attributes{"ftr"})_esc_>
+					<a class="dlink-button" href="<_esc_=rest.controller_path("<%=$controller%>")_esc_>">Show All</a>
+
+				<_esc_end if_esc_>
+			</form>
+			
+		<%end if%>
+		
+	</div>
+	<%	$th := "\n"
+		$td := "\n"
+		for ($i; 1; size of array($attributes{"index"}))
+			$cnt := split string($attributes{"index"}{$i};".";$mf)
+			$mdl := trim($mf{1})
+			$fld := trim($mf{2})
+			$label := capitalize(replace string($fld;"_";" "))
+			if ($model # $mdl )
+				$label := capitalize($mdl)+ " "+$label
+			end if
+			
+			$th += '\t\t\t<td>$label</td>\n'
+			$td += "\t\t\t\t<td><_esc_=$row{\""+$mdl+"."+$fld+"\"}_esc_></td>\n"
+		end for%>
+	
+	<table cellspacing="0">
+		<tr class="column-heads">
+			<%=$th%>
+			<td>Actions</td>
+		</tr>
+		<_esc_
+		$row := $<%=$controller%>->getRow
+		$alt := true
+		while ($<%=$controller%>->next)
+			$alt := not($alt)
+			$rowClass := choose($alt; "alt"; "")
+			$query := build query string(""; "id"; $row{"<%=$model%>.id"})
+			_esc_>
+			<tr class="<_esc_=$rowClass_esc_>">
+				<%=$td%>
+				<td>
+					<a class="dlink-button" href="<_esc_=rest.controller_path("<%=$controller%>";$row{"<%=$model%>.id"};$baseQuery)_esc_>">Show</a>
+					<a class="dlink-button" href="<_esc_=rest.edit_controller_path("<%=$controller%>";$row{"<%=$model%>.id"};$baseQuery)_esc_>">Edit</a>
+					<_esc_=delete_link("<%=$controller%>";$row{"<%=$model%>.id"}) _esc_>
+				</td>
+			</tr>
+		<_esc_end while_esc_>
+	</table>
+	<_esc_=rest.utils.makeBatchDiv($batch;"<%=$filterQuery%>";$attributes)_esc_>
+	<div style="clear:both"></div>
+</div> 
+

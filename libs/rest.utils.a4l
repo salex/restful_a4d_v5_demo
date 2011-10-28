@@ -1,0 +1,437 @@
+/*
+	rest.utils library
+	
+	$Id: library.a4l 3200 2006-05-01 21:50:46Z aparajita $
+*/
+
+library "rest.utils"
+
+
+
+method "jsonParseSimple"($json)
+
+	// First convert any dates in IETF format to 4d date
+	$re1 := "~\"?(Jan|Feb|Mar|Apr|May|Jun|Jul|Aug|Sep|Oct|Nov|Dec)( \d\d*, \d{4})\"~"
+	$rp1 := "html.newDate(\"\1\2\")"
+	regex replace($re1; $json; $rp1; $json)
+	$json := trim($json)
+	if ($json[[1]] = "[") // if json is just an array, wrap in in an object
+		$json := '{"array":$json}'
+	end if
+	// replace any herdoc delimiters with %hex for double quote
+	$json := replace string($json;'"""';"%22")
+	//Next, hide commas, colons, apostrophe between quotes
+	$inQuote := false
+	// replacing characters with [[]] is shaky in v11, just write $json1
+	$json1 := ""
+	for ($index;1;length($json))
+		$char := $json[[$index]]
+		case of
+			:($char = '"')
+				$inQuote := not($inQuote)
+				 $o := $char
+			:(($char = ",") & $inQuote)
+				$o := "%2c"
+			:(($char = ":") & $inQuote)
+				$o := "%3a"
+			:(($char = "'") & $inQuote)
+				$o := "%27"
+			:(($char = "\n") & not($inQuote))
+				$o := " "
+			:(($char = "\r") & not($inQuote))
+				$o := " "
+			:(($char = "\n") & ($inQuote))
+				$o := "%0a"
+			:(($char = "\r") & ($inQuote))
+				$o := "%0a"
+			:(($char = "{") & ($inQuote))
+				$o := "%7b"
+			:(($char = "}") & ($inQuote))
+				$o := "%7d"
+			:(($char = "[") & ($inQuote))
+				$o := "%5b"
+			:(($char = "}") & ($inQuote))
+				$o := "%5d"
+			else
+				$o := $char
+		end case
+		$json1 += $o
+	end for
+	
+
+	//Now convert objects
+	array text($pattern;0) // regex pattern array
+	array text($replace;0) // reqex replace array
+	// set the reqex array - first the patterns to match
+	$pattern{} := "/\\:\s*\\{/"  // object => convert :{ to ;new collection(
+	$pattern{} := "/\\[\\]/" // replace empty array with empty text array -> a call to emptyArray
+	$pattern{} := "/\\:\s*\\[/" //  text, real, or longint array -> a call to newArray(''' JSON ARRAY ''')
+	$pattern{} := "/\\]/" // end  array => convert ] to )
+	$pattern{} := "/\\}/" // end object => convert } to )
+	$pattern{} := "/[\\:,]/" // replace comma and colon  with semi-colon
+	$pattern{} := "/\\{/" // replace begining object with new collection()
+	$pattern{} := "/new collection\\(\\)/" // replace empty collection convert new collection() with new collection
+
+	//set the replacement array
+	$replace{} := ";new collection(" // ojects that have a key
+	$replace{} := "emptyArray" // []
+	$replace{} := ";newArray( %22 " // [..,..,..]
+	$replace{} := " %22)"
+	$replace{} := ")"
+	$replace{} := ";"
+	$replace{} := "new collection(" // collections without a key (an array of collections)
+	$replace{} := "new collection"
+
+	regex replace($pattern; $json1; $replace; $results) // do the replacements
+	
+	//put commas, colon, apos back and other json special characters back
+	$results := replace string($results;"%2c";",")
+	$results := replace string($results;"%3a";":")
+	$results := replace string($results;"%27";"'")
+	$results := replace string($results;"%0a";"\\n")
+	$results := replace string($results;"%7b";"{")
+	$results := replace string($results;"%7d";"}")
+	$results := replace string($results;"%5b";"[")
+	$results := replace string($results;"%5d";"]")
+	$results := replace string($results;"%22";'"""')
+
+	// create the collection from the parsed $results - make Active4D work
+	$collection := execute("return ("+ $results+ ")")
+	//writebr('<textarea>$results</textarea>')
+	//$collection := new collection
+	return($collection)
+end method
+
+
+
+/**********************************************************************************
+emptyArray
+
+	The response to finding and empty array [] in a JSON object is to 
+	return an empty text array
+
+**********************************************************************************/
+
+method "emptyArray"
+	array text($result;0)
+	return($result)
+end method
+
+/**********************************************************************************
+	newArray
+
+	$inList	->	Text		The JSON array os enclosed in a ''' ''' herdoc string. 
+		JSON comma delimiters for the array had been changed to semi-colons at this point.
+
+	Return either a text array, a longint array, an array of collections,  or a real array based in contents.
+		A parenthesis will assume a text array
+		A decimal (.)  will assume a real array
+		An array of new collection(...) will create an array of collections (longint) after creating the collections
+		If none of the above, it assumes an array of longint.
+**********************************************************************************/
+
+method "newArray"($inList)
+	$inList := trim($inList)
+	$isNC := $inList = "new collection@"
+	// Handle an array of collections separately - just deal with top level if nested collection
+	if ($isNC)
+		$level := 0
+		for ($index;1;length($inList))
+			$char := $inlist[[$index]]
+			case of
+				:($char = "(")
+					$level++
+				:(($char = ")") )
+					$level--
+				:(($char = ";") & ($level = 0))
+					$inList[[$index]] := "|"
+			end case
+		end for
+		$cnt := split string($inList;"|";$chunks)
+		array longint($result;size of array($chunks))
+		for each ($chunks; $value; $index)
+			$ncoll := trim($value)
+			$result{$index} := execute("return ("+ $ncoll+ ")") // execute the new collection text
+		end for each
+		return($result)
+	end if
+	$isReal := "." ~ $inList
+	$isText := '"' ~ $inList
+	$isReal := $isReal & not($isText)
+	$count := split string($inList;";";$chunks)
+	case of
+		:($isText)
+			array text($result;$count)
+			for each ($chunks; $value; $index)
+				$result{$index} := trim(replace string($value;'"';''))
+			end for each
+		:($isReal)
+			array real($result;$count)
+			for each ($chunks; $value; $index)
+				$result{$index} := num($value)
+			end for each
+		else
+			array longint($result;$count)
+			for each ($chunks; $value; $index)
+				$result{$index} := num($value)
+			end for each
+	end case
+	return($result)
+end method
+
+/**********************************************************************************
+null
+
+	The response to finding and Null word in a JSON object is to 
+	return a nil pointer ( or could return char(0))
+
+**********************************************************************************/
+
+method "null"
+	return(nil pointer)
+end method
+
+/**********************************************************************************
+newDate
+
+	The response to finding and date in a JSON object that is a string formatted 
+	in the "Jan 2, 2011" format is to replace it with a 4D date
+
+**********************************************************************************/
+
+method "newDate"($date)
+	// replace date in Jan 2, 2011 with 4D date
+	array string(3; $months; *; "Jan"; "Feb"; "Mar"; "Apr"; "May"; "Jun"; "Jul"; "Aug"; "Sep"; "Oct"; "Nov"; "Dec")
+	$date := replace string($date;",";"")
+	$cnt := split string($date;" ";$chunks)
+	$tmp := string(find in array($months;$chunks{1}))+'/$chunks{2}/$chunks{3}'
+	return(date($tmp))
+end method
+
+
+/* just threw in another version of a calendar generation method 
+and a differnt way of generating a bacth div to provide some filler*/
+method "MakeCal"($curDate= current date;$fuseAction = "")
+	$today := current date
+	$todayd := day of($today)
+	$isCurr := $curDate = current date
+	$curMonth := month of($curDate)
+	$day := day of($curDate)
+	$year := year of($curDate)
+	$holMonth := $year*100 + $curMonth
+	$html := '<div class="calendar">' //xml_openTag("div";"class";"calendar")
+	$html += "<table>"
+	if($fuseAction # "")
+		//$xxx := xml_tag("a";get indexed string(11;12+month of($curDate))+" "+year of($curDate);"href";$fuseAction+";m="+$holMonth)
+		$xxx := '<a href="<%=$fuseaction%>">`get indexed string(11;12+month of($curDate))+" "+year of($curDate)`</a>'
+	else
+		//$xxx := xml_tag("a";get indexed string(11;12+month of($curDate))+" "+year of($curDate);"href";"/myaidt/cal?m="+$holMonth)
+	end if
+	//$html += xml_Tag("caption";get indexed string(11;12+month of($curDate))+" "+year of($curDate))
+	$html += '<caption>$xxx</caption>'//xml_tag("caption";$xxx)
+	$html += "<tr><th>S</th><th>M</th><th>T</th><th>W</th><th>T</th><th>F</th><th>S</th></tr>"
+		
+	//$curDate := current Date
+	$tmpDate := add to date($curDate;0;0;(-$day)+1)
+	$endDate := add to date($tmpDate;0;1;0)
+	$endDate -= 1
+	$endDay := day of($endDate)
+	$wday := day number($tmpDate)
+	// holiday crap
+	array longint($holidays;0)
+	case of
+
+		:($holMonth = 200701)
+			Set array($holidays;1;15)
+		:($holMonth = 200704)
+			Set array($holidays;6)
+		:($holMonth = 200705)
+			Set array($holidays;28)
+		:($holMonth = 200707)
+			Set array($holidays;4)
+		:($holMonth = 200709)
+			Set array($holidays;3)
+		:($holMonth = 200711)
+			Set array($holidays;12;22;23)
+		:($holMonth = 200712)
+			Set array($holidays;24;25;26;27;28)
+		:($holMonth = 200801)
+			Set array($holidays;1;21)
+		:($holMonth = 200803)
+			Set array($holidays;21)
+		:($holMonth = 200805)
+			Set array($holidays;26)
+		:($holMonth = 200807)
+			Set array($holidays;4)
+		:($holMonth = 200809)
+			Set array($holidays;1)
+		:($holMonth = 200811)
+			Set array($holidays;11;27;28)
+		:($holMonth = 200812)
+			Set array($holidays;22;23;24;25;26)
+
+	end case
+	$html += "<tr>"
+	for($i;1;$wday-1)
+		$html += "<td>&nbsp;</td>"
+	end for
+	$theDay:=1
+	for($i;$wday;7)
+		$curr := add to date($tmpdate ;0;0;$theday-1)
+		if($curr = $today)//$theDay = $day
+			$html += "<td class=\"today\"><span style=\"background:#ddd;\" >"+$theDay+"</span></td>"
+		else
+			if(find in array($holidays;$theDay)>0)
+				$html += "<td class=\"holiday\">"+$theDay+"</td>"
+			else
+				$html += "<td>"+$theDay+"</td>"
+			end if
+		end if
+		$theDay += 1
+	end for
+	$html += "</tr>\n"
+	$dow := 1
+	while ($theDay <= $endDay)
+		$curr := add to date($tmpdate ;0;0;$theday-1)
+		if($dow = 1)
+			$html += "<tr>"
+		end if
+		if($curr = $today)
+			$html += "<td class=\"today\">"+$theDay+"</td>"
+		else
+			if(find in array($holidays;$theDay)>0)
+				$html += "<td class=\"holiday\">"+$theDay+"</td>"
+			else
+				$html += "<td>"+$theDay+"</td>"
+			end if
+		end if
+		$theDay += 1
+		$dow += 1
+		if($dow = 8)
+			$html += "</tr>\n"
+			$dow := 1
+		end if
+	end while
+	if($dow#1)
+		$html += "</tr>\n"
+	end if
+	
+	 //$html += "<tr><td colspan='7'>"+$curDate+"</td></tr>"	
+
+	
+	$html += "</table>"
+	$html += "</div>"
+	return($html)
+end method
+
+method "testwho"
+	//if (not(session id))
+	//get request infos($keys;$values)
+	//a4d.console.dump array($values)
+		session{"start"} := timestamp
+		session{"current_user"} := string(session internal id)
+		if(globals has("who"))
+			lock globals
+			globals{"who"}{string(session internal id)} := timestamp+" : "+session id+" : "+ get request value("X-Forwarded-For")
+			unlock globals
+		end if
+	//end if
+end method
+
+/* This is a kludge that I just have not gotten around to cleaning up, it provides a different kind of layout for the batch div */
+method "makeBatchDiv"($batch;$filter;$attributes;$numLinks=0;$rbst="")
+	/* generate a div that contains the batch links formatted with some css */
+	c_text($prev; $batches; $next)
+	$next := '<img style="vertical-align:middle" src="/images/pgNextOn.gif" alt="" />'
+	$prev := '<img style="vertical-align:middle" src="/images/pgBackOn.gif" alt="" />'
+	$needBatch := $batch->makeFuseboxLinks($prev; $batches; $next; $attributes;""; $filter;"";"";$numLinks)
+	if (not($needBatch))
+		if ($batch{"row_count"} > 0)
+			$batchDiv := '''
+			<div id="new-batch"> 
+				<div class="left">Records $batch{"start"} - $batch{"end"} of $batch{"row_count"}</div>
+			</div>
+			<div style="clear:both"></div>
+			'''
+		else
+			$batchDiv := '''
+			<div id="new-batch"> 
+				<div class="left">No Records Selected</div>
+			</div>
+			<div style="clear:both"></div>
+			'''
+		end if
+		// This is what $batches looks like from the makeFuseboxLinks - there are pages - 1 links and one <strong> for the current page.
+//<strong >1</strong>&nbsp;<a href="/ads:transactions/list?bst=21" >2</a>&nbsp;<a href="/ads:transactions/list?bst=41" >3</a>&nbsp;<a href="/ads:transactions/list?bst=61" >4</a>
+// <(a [^>]*)>([^<]+)(</a>)    -- find anchor
+// href="[^"]+"  - find href
+
+	else
+		
+		$size := $batch{"size"}
+		
+		$start := position('<a href=';$batches)
+		$end := position('bst=';$batches)
+		$burl  := substring($batches;$start+9;$end-$start-1)
+		$lastEqual := last of($burl;"=")
+		$burl := "'"+substring($burl;1;$lastEqual)+"'"		
+		$current := regex match('|<strong >(\d+)\<|';$batches;$list) 
+		if ($current)
+			$currpage := $list{1}
+		else
+			$currpage := "1"
+		end if
+		//$pagemax := regex match all('|\<a href|';$batches;$links) +1
+		
+		$pagemax := $batch{"row_count"} \ $size
+		$remain := $batch{"row_count"} - ($pagemax * $size)
+		if ($remain >= $batch{"orphan"})
+			$pagemax++
+		end if
+		
+		array text($re;0) // regex array
+		array text($rp;0) // replace array
+		// set the reqex array
+		$re{} := "|<a |"  
+		$re{} := "|href=|" 
+		$re{} := "|<strong|" 
+		$re{} := "|</strong>|" 
+		$re{} := "|</a>|" 
+		$re{} := "|&nbsp;|" 
+		//set the replacement array
+		$rp{} := "<option "
+		$rp{} := "value="
+		$rp{} := '<option selected="selected"'
+		$rp{} := "</option>"
+		$rp{} := "</option>"
+		$rp{} := "\n"
+		regex replace($re; $batches; $rp; $results)
+		
+		$sel := "\n<select "+'onchange="window.location.href = this.value;"'+' name="batchOpt" id="batchOpt"'+">"+$results+"\n</select>\n"+ \\
+		'<input type="text" size="4" style="font-size:.9em" value="$currpage" onchange="window.location.href = $burl + ((this.value*$size) + 1 - $size);" />'
+		
+		$prev := choose($prev # "";$prev;'<img style="vertical-align:middle" src="/images/pgBackOff.gif" alt="" /> ')
+		$next := choose($next # "";$next;'<img style="vertical-align:middle" src="/images/pgNextOff.gif" alt="" />')
+		/* Now make the div */
+		$batchDiv := '''
+		<div id="new-batch"> 
+			<div class="left">
+				Records $batch{"start"} - $batch{"end"} of $batch{"row_count"}
+			</div>
+			<div class="center"> 
+				$prev 	Page $currpage of $pagemax 	$next 
+			</div>
+			<div class="right">Go To Page: 
+				<span style="vertical-align:middle">$sel</span>
+			</div>
+		</div>
+		<div style="clear:both"></div>
+		'''
+		
+	end if
+	return($batchDiv)
+	
+end method
+
+end library
+

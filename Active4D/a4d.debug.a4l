@@ -1,0 +1,932 @@
+/*
+	Active4D private -- DO NOT EDIT!
+
+	Copyright (c) 2005-2009 Aparajita Fishman, All Rights Reserved
+*/
+
+library "a4d.debug"
+
+
+
+/**********************************************************************************
+	dump array
+
+	$inArray				->	Array		Array to display
+	$inDisplayInline		->	Boolean		True to display array contents in 1 cell
+	$inName					->	Text		If empty, variable referred to by $inArray
+											is used, else this name
+	$inDisplayCollections	->	Boolean		True to display collections if $inDisplayInline
+											is false and a numeric array value is a 
+											collection handle
+
+	Note that we pass $inArray by reference. This allows us to access $inArray
+	as if it were a pointer to an array, but without having to dereference.
+**********************************************************************************/
+
+method "dump array"(&$inArray; $inDisplayInline = false; $inName = ""; $inDisplayCollections = false)
+	
+	c_boolean($isText)
+	$isText := (type($inArray) = Text array) | (type($inArray) = String array)
+	
+	c_longint($colspan)
+	
+	if ($inDisplayInline)
+		$colspan := 1
+	else
+		$colspan := choose($isText; 3; 2)
+	end if
+	
+	c_text($name)
+	
+	if ($inName)
+		$name := $inName
+	else
+		$name := variable name($inArray)
+		
+		if (not($name))
+			$name := "&lt;no name&gt;"
+		end if
+	end if
+	
+	addDumpStyles
+	writeln('''
+<div>
+<div class="a4d-debug">
+<table cellspacing="1">
+  <tr>
+    <td colspan="$colspan" class="title">$name: `type descriptor($inArray)`</td>
+  </tr>''')
+	
+	if ($inDisplayInline)
+		writeln('''
+  <tr>
+    <td class="inline">[$inArray] {`mac to html(join array($inArray; ", "; 1; false; true); *)`}</td>
+  </tr>''')
+
+  	else
+		if ($isText)
+			$lengthColumn := "<th>Length</th>"
+		else
+			$lengthColumn := ""
+		end if
+		
+		writeln('''
+  <tr>
+    <th class="num">#</th>
+    <th>Value</th>
+	$lengthColumn
+  </tr>''')
+		
+		c_longint($size; $i)
+		$size := size of array($inArray)
+		
+		for ($i; 0; $size)
+			$isCollection := false
+			$type := type($inArray)
+			
+			case of
+				:($type = Text array) | ($type = String array)
+					$value := mac to html(enclose($inArray{$i}); *) + "</td>\n    <td>" + length($inArray{$i})
+					
+				:($type = Pointer array)
+					$value := a4d.utils.getPointerReferent($inArray{$i})
+					
+				:($type = Picture array)
+					$value := a4d.utils.getPictureDescriptor($inArray{$i})
+					
+				:($type = Date array)
+					$value := string($inArray{$i}; Abbr Month Day)
+					
+				:($type = longint array) | ($type = real array)
+					$value := $inArray{$i}
+					$isCollection := is a collection($value) & $inDisplayCollections
+			else
+				$value := $inArray{$i}
+			end case
+
+			if ($i = $inArray)
+				$class := " current"
+			else
+				$class := ""
+			end if
+			
+			writeln('''
+  <tr>
+    <td class="label num $class">$i</td>
+    <td>''')
+
+			if ($isCollection)
+				a4d.debug.dump collection($value; ""; false; false)
+			else
+				writeln($value)
+			end if
+			
+			writeln("""</td>
+  </tr>""")
+		end for
+	end if
+	
+	writeln("</table>\n</div>\n</div>")
+	
+end method
+
+
+
+/**********************************************************************************
+	dump collection
+	
+	$inReference	->	Collection | Iterator	Iterator to the collection to display
+	$inName			->	String					Name of the dumped entity
+	$inShowType		-> 	Boolean					True to show the value's type
+	$inInlineArrays	->	Boolean					True to display arrays inline
+	
+	Creates a formatted dump of a collection.
+**********************************************************************************/
+
+method "dump collection"(&$inReference; $inName = ""; $inShowType = false; $inInlineArrays = true)
+	
+	if (type($inReference) # is longint) & (type($inReference) # is real)
+		writebr("<p>The collection reference passed in is neither an iterator nor a collection handle.</p>")
+		return
+	end if
+	
+	c_longint($it)
+	
+	case of
+		:(is an iterator($inReference))
+			$it := $inReference
+	
+		:(is a collection($inReference))
+			$it := collection($inReference)
+	else
+		writebr("<p>The collection reference passed in is neither an iterator nor a collection handle.</p>")
+		return
+	end case
+	
+	if (not($inName))
+		$inName := variable name($inReference)
+	end if
+	
+	addDumpStyles
+	writeln('''
+<div>
+<div class="a4d-debug">
+<table cellspacing="0">
+<tr>
+<td style="padding: 0">
+  <table cellspacing="1">
+  <tr>
+    <td colspan="`choose($inShowType; 3; 2)`" class="title">`$inName | "Unnamed collection"`</td>
+  </tr>''')
+	_writeCollectionItems($it; true; $inShowType; ""; $inInlineArrays)
+	write("</table>\n</td></tr>\n</table>\n</div>\n</div>\n")
+	
+end method
+
+
+
+/**********************************************************************************
+	_writeCollectionItems [private]
+	
+	$inIterator		->	Iterator	Iterator for the collection to display
+	$inShowHeader	->	Boolean		True to display column headers
+	$inShowType		-> 	Boolean		True to show the value's type
+	$inFilter		->	Text		Items matching this regexp are hidden
+	$inInlineArrays	->	Boolean		True to display arrays inline
+**********************************************************************************/
+
+method "_writeCollectionItems"($inIterator; $inShowHeader = true; $inShowType = false; $inFilter = ""; $inInlineArrays = true)
+	
+	if ($inShowHeader)
+		write("<tr>\n")
+		write("<th>Key</th>\n")
+		
+		if ($inShowType)
+			write("<th>Type</th>\n")
+		end if
+		
+		write("<th>Value</th>\n")
+		write("</tr>\n")
+	end if
+	
+	c_longint($type; $count)
+	c_text($typeStr; $valueStr)
+	c_text($key)
+	$count := 0
+	
+	while (more items($inIterator))
+		++$count
+		$continue := true
+		$key := get item key($inIterator)
+		
+		if ($inFilter)
+			if ($key =~ $inFilter)
+				next item($inIterator)
+				$continue := false
+			end if
+		end if
+		
+		if ($continue)
+			$type := get item type($inIterator)
+		
+			if (not(is array($type)))
+				$value := $inIterator{$key}
+			end if
+		
+			$valueStr := ""
+			$typeStr := ""
+			$valueIsCollection := false
+			$valueIsArray := false
+		
+			write("<tr>\n")
+			write('<td class="label">$key</td>\n')
+		
+			case of
+				:(is array($type))
+					if ($inInlineArrays)
+						$valueStr := '[$inIterator{$key}] {`join array($inIterator{$key}; ", "; 0; false; true)`}'	`no element number, quote text
+					else
+						$valueIsArray := true
+					end if					
+				
+				:($type = Is Text)
+					$valueStr := enclose($value)
+				
+				:($type = Is Date)
+					$valueStr := string($value; Abbr Month Day)
+				
+				:($type = Is Picture)
+					$valueStr := a4d.utils.getPictureDescriptor($value)
+				
+				:($type = Is BLOB)
+					$valueStr := string(blob size($value)) + " bytes"
+				
+				:($type = Is Pointer)
+					$valueStr := string($value)
+				
+				:($type = Is Real) | ($type = Is LongInt)
+					$valueIsCollection := is a collection($value)
+			end case
+		
+			if ($inShowType)
+				case of
+					:(is array($type))
+						$typeStr := type descriptor($inIterator{$key})
+					
+					:($valueIsCollection)
+						$typeStr := "Collection"
+				else
+					$typeStr := type descriptor($value)
+				end case
+			
+				write("<td class=\"no-wrap\">" + $typeStr + "</td>\n")
+			end if
+		
+			write("<td>")
+		
+			case of
+				:($valueIsCollection)
+					a4d.debug.dump collection($value; $key; $inShowType; $inInlineArrays)
+				
+				:($valueIsArray)
+					a4d.debug.dump array($inIterator{$key}; false; $key; true)
+			else
+				if (not(is array($type)) & (length($valueStr) = 0))
+					$valueStr := string($value)
+				end if
+			
+				write(cell(mac to html($valueStr; *)))
+			end case
+		
+			write("</td>\n</tr>\n")
+			next item($inIterator)
+		end if
+	end while
+	
+	if ($count = 0)
+		writeln('''
+<tr>
+<td colspan="`choose($inShowType; "3"; "2")`">[Empty collection]</td>
+</tr>''')
+	end if
+	
+end method
+
+
+
+/**********************************************************************************
+	dump session
+
+	$inShowType		-> 	Boolean					True to show the value's type
+	$inInlineArrays	->	Boolean					True to display arrays inline
+	
+	Dumps the contents of the current session in an easy to read format.
+***********************************************************************************/
+
+method "dump session"($inShowType = true; $inInlineArrays = true)
+	
+	if (session internal id = 0)
+		write("<p>There is no current session.</p>\n")
+	else
+		$timeout := get session timeout
+		
+		if ($timeout < 1)
+			$timeout := "{0,number,#########0} seconds" %% ($timeout * 60)
+		else
+			$timeout := "{0,number,#########0} minutes" %% ($timeout)
+		end if
+		
+		a4d.debug.dump collection(session; 'Session [`session internal id`/`session id`]<br /><span style="font-weight: normal">Timeout: $timeout</span>'; $inShowType; $inInlineArrays)
+	end if
+	
+end method
+
+
+
+/**********************************************************************************
+	dump session stats
+	
+	$inSortBy	->	Text	Column to sort by (time remaining/id/timeout/size
+	$inSortDir	->	Text	Sort direction (> = ascending, < = descending)
+	
+	Dumps the state of all current sessions in an easy to read format.
+***********************************************************************************/
+
+method "dump session stats"($inSortBy = "time remaining"; $inDir = ">")
+	
+	array longint($ids; 0)
+	array real($timeouts; 0)
+	array longint($remainingTimes; 0)
+	array longint($sizes; 0)
+	get session stats($ids; $timeouts; $remainingTimes; $sizes)
+	
+	case of
+		:($inSortBy = "time remaining")
+			$sortedColumn := 3
+			
+			if ($inDir # "<")
+				sort array($remainingTimes; $ids; $timeouts; $sizes; >)
+			else
+				sort array($remainingTimes; $ids; $timeouts; $sizes; <)
+			end if
+			
+		:($inSortBy = "id")
+			$sortedColumn := 1
+			
+			if ($inDir # "<")
+				sort array($ids; $remainingTimes; $timeouts; $sizes; >)
+			else
+				sort array($ids; $remainingTimes; $timeouts; $sizes; <)
+			end if
+			
+		:($inSortBy = "timeout")
+			$sortedColumn := 2
+			
+			if ($inDir # "<")
+				sort array($timeouts; $remainingTimes; $ids; $sizes; >)
+			else
+				sort array($timeouts; $remainingTimes; $ids; $sizes; <)
+			end if
+			
+		:($inSortBy = "size")
+			$sortedColumn := 4
+			
+			if ($inDir # "<")
+				sort array($sizes; $remainingTimes; $ids; $timeouts; >)
+			else
+				sort array($sizes; $remainingTimes; $ids; $timeouts; <)
+			end if
+	end case
+	
+	addDumpStyles
+	writeln('''
+<div>
+<div class="a4d-debug">
+<table cellspacing="1">
+  <tr>
+    <td colspan="4" class="title">Session Stats</td>
+  </tr>
+  <tr>''')
+	c_longint($numSessions; $i)
+	$numSessions := size of array($ids)
+
+	if ($numSessions = 0)
+		write("<td colspan=\"4\">There are no current sessions</td>\n")
+	else
+		writeln('''
+    <th>ID</th>
+    <th>Timeout</th>		
+    <th>Remaining Time</th>
+    <th>Size</th>''')
+	end if
+	
+	write("</tr>\n")
+	array text($classes; 4)
+	$classes{$sortedColumn} := " class=\"label\""
+	
+	for ($i; 1; $numSessions)
+		writeln('''
+  <tr>
+    <td $classes{1}>$ids{$i}</td>
+	<td $classes{2}>$timeouts{$i}</td>
+	<td $classes{3}>`string($remainingTimes{$i}; "&/1")`</td>
+	<td $classes{4}>$sizes{$i} bytes</td>
+  </tr>''')
+	end for
+	
+	write("</table>\n</div>\n</div>\n")
+	
+end method
+
+
+
+/***********************************************************************************
+	dump request info
+	
+	Dumps the contents of the request info collection in an easy to read format.
+***********************************************************************************/
+
+method "dump request info"
+	
+	a4d.debug.dump collection(request info; "Request Info"; false)
+	
+end method
+
+
+
+/***********************************************************************************
+	dump query params
+	
+	Dumps the contents of the query params collection in an easy to read format.
+***********************************************************************************/
+
+method "dump query params"
+	
+	a4d.debug.dump collection(_query; "Query Params"; true)
+	
+end method
+
+
+
+/***********************************************************************************
+	dump form variables
+	
+	Dumps the contents of the form variables collection in an easy to read format.
+***********************************************************************************/
+
+method "dump form variables"
+	
+	a4d.debug.dump collection(_form; "Form Variables"; true)
+	
+end method
+
+
+
+/***********************************************************************************
+	dump request
+	
+	Dumps the entire contents of the request collections in an easy to read format.
+***********************************************************************************/
+
+method "dump request"
+	
+	a4d.debug.dump query params
+	writebr
+	a4d.debug.dump form variables
+	writebr
+	a4d.debug.dump request info
+	writebr
+	a4d.debug.dump session
+	
+end method
+
+
+
+/***********************************************************************************
+	dump license info
+	
+	Dumps the license info for the currently loaded key file.
+***********************************************************************************/
+
+method "dump license info"
+	
+	c_text($user; $company; $version; $ip; $timeRemaining; $path)
+	c_longint($license; $platform; $seconds)
+	get license info($user; $company; $license; $version; $ip; $exp; $platform; $path)
+	$seconds := get time remaining
+	
+	case of
+		:($seconds > 0)
+			c_time($time)
+			$time := $seconds
+			$timeRemaining := string($time)
+			
+		:($seconds = 0)
+			$timeRemaining := "Unlimited"
+			
+		:($seconds < 0)
+			$timeRemaining := "Expired"
+	end case
+	
+	array text($licenseTypes; *; "Trial"; "Developer"; "Deployment"; "OEM"; "Special")
+	$licenseType := $licenseTypes{$license + 1}
+	$exp := string($exp; Abbr Month Day)
+	addDumpStyles
+	write('''
+<div><div class="a4d-debug">
+<table cellspacing="1">
+  <tr>
+    <td colspan="2" class="title">License Info</td>
+  </tr>
+  <tr>
+    <th>Item</th>
+    <th>Value</th>
+  </tr>
+  <tr>
+    <td class="label">License type</td>
+    <td>$licenseType</td>
+  </tr>''')
+
+	if ($license # 0)  // trial
+		write('''
+  <tr>
+    <td class="label">Username</td>
+    <td>`cell(mac to html($user; *))`</td>
+  </tr>
+  <tr>
+    <td class="label">Company</td>
+    <td>`cell(mac to html($company; *))`</td>
+  </tr>
+  <tr>
+    <td class="label">Version</td>
+    <td>$version</td>
+  </tr>''')
+	end if
+
+	if ($license = A4D License Type Deployment)
+		write('''
+  <tr>
+    <td class="label">Key IP address</td>
+    <td>`cell($ip)`</td>
+  </tr>
+  <tr>
+    <td class="label">Server IP address</td>
+    <td>`<>A4D_HostAddr`</td>
+  </tr>
+  <tr>
+    <td class="label">Expiration date</td>
+    <td>$exp</td>
+  </tr>''')
+	end if
+	
+	write('''
+  <tr>
+    <td class="label">Time remaining</td>
+    <td>$timeRemaining</td>
+  </tr>''')
+
+	if ($license # 0)  // trial
+		write('''
+  <tr>
+    <td class="label">Key file path</td>
+    <td>`mac to html($path; *)`</td>
+  </tr>''')
+	end if
+	
+	write('''
+</table>
+</div>
+</div>
+''')
+	
+end method
+
+
+
+/***********************************************************************************
+	dump locals
+	
+	$inDumpChain	->	Boolean		True dumps locals for all methods in the call chain
+	$inShowFusebox	->	Boolean		False (default) hides fusebox-related stuff, true
+									shows fusebox stuff
+	
+	Dumps the local variables for the current scope or for all methods 
+	in the call chain.
+***********************************************************************************/
+
+method "dump locals"($inDumpChain = false; $inShowFusebox = false)
+	
+	addDumpStyles
+	writeln('''
+<div>
+<div class="a4d-debug">
+<table cellspacing="1">''')
+
+	c_longint($i; $start; $end)
+	get call chain($chain)
+	
+	// The top level in the chain is this method, which we don't want to show
+	delete element($chain; 1)
+	
+	if ($inDumpChain)
+		$start := 1
+		$end := size of array($chain)
+	else
+		$start := $end := 1
+	end if
+	
+	$filter := choose($inShowFusebox; ""; "/^\$(fbx_.+|fusebox|attributes|inNestedCall|inRootPath|ioAttributes)$/")
+	
+	for ($i; $start; $end)
+		$scopeName := $chain{$i}
+		
+		if ($i < size of array($chain))
+			$scopeName := 'Method "$scopeName"'
+		end if
+		
+		write('''
+<tr>
+  <td colspan="3" class="title">$scopeName</td>
+</tr>''')
+		_writeCollectionItems(local variables($chain{$i}); $i = 1; true; $filter)
+	end for
+	
+	write("</table>\n</div>\n</div>\n")
+	
+end method
+
+
+
+/***************************************************************************************************
+	dump RowSet
+	
+	$inRowSet	Collection	->	RowSet handle
+	$inName		Text		->	Name of RowSet
+	
+	Dumps the given RowSet. This is just an alias for $inRowSet->dump($inName).
+***************************************************************************************************/
+
+method "dump RowSet"($inRowSet; $inName = "")
+	
+	$inRowSet->dump($inName)
+	
+end method
+
+
+
+/***************************************************************************************************
+	dump selection
+	
+	$inTable	Table pointer	->	Table to dump
+	$inFields	Text			->	Semicolon-delimited list of fields to display
+	
+	Dumps the current selection for $inTable. If $inFields is passed, only those fields
+	are displayed, otherwise all fields are displayed. $inFields may contain fields from
+	related one tables. If the field is in $inTable, you don't need to specify the table,
+	the field name alone is sufficient. You may also specify a format for a field
+	by putting a format string after the field name, separated by a colon.
+	
+	An example:
+	
+	a4d.debug.dump selection(->[ingredients]; "id;name;price:$###.00;[vendors]name")
+***************************************************************************************************/
+
+method "dump selection"($inTable; $inFields = "")
+	
+	$tableNum  := table($inTable)
+	$tableName := table name($inTable; *)
+	
+	array pointer($fields; 0)
+	array text($fieldNames; 0)
+	array text($fieldFormats; 0)
+	$numFields := split string($inFields; ";"; $fieldNames)
+	$autoRelate := false
+	
+	if ($numFields = 0)
+		// Get the fields from the structure
+		for ($i; 1; get last field number($inTable))
+			if (is field number valid($tableNum; $i))
+				$fields{} := field($tableNum; $i)
+				$fieldNames{} := field name($tableNum; $i)
+			end if
+		end for
+		
+		resize array($fieldFormats; size of array($fields))
+	else
+		// Fix up the field names
+		resize array($fields; size of array($fieldNames))
+		resize array($fieldFormats; size of array($fieldNames))
+		c_text($format)
+		
+		for each ($fieldNames; $fieldName; $i)
+			$fieldName := trim($fieldName)
+			
+			if (not($fieldName))
+				throw("dump selection: empty field name.")
+			else
+				// Separate the field name from a format
+				$name := trim(slice string($fieldName; ":"; $format))
+				
+				if ($name[[1]] = "[")
+					$ptr := get field pointer($name)
+				else
+					$ptr := get field pointer($tableName + $name)
+				end if
+				
+				if (nil($ptr))
+					throw('dump selection: invalid field ("$fieldNames{$i}")')
+				end if
+				
+				$fields{$i} := $ptr
+
+				if ($tableNum # table($ptr))
+					$autoRelate := true
+				else
+					// If it's a full [table]field ref within $inTable, remove [table]
+					if ($name[[1]] = "[")
+						$name := substring($name; position("]"; $name) + 1)
+					end if
+				end if
+				
+				$fieldNames{$i} := $name
+				$fieldFormats{$i} := trim($format)
+			end if
+		end for each
+	end if
+	
+	$selected := selected record number($inTable->)
+	
+	// Write the header
+	addDumpStyles
+	writeln('''
+<div>
+<div class="a4d-debug">
+<table cellspacing="1">
+  <tr>
+    <td colspan="`size of array($fields) + 1`" class="title">`mac to html($tableName; *)`</td>
+  </tr>
+  <tr>
+    <th class="num">#</th>''')
+	
+	// Write the field names at the top
+	
+	for each ($fieldNames; $name)
+		writeln('    <th>`mac to html($name; *)`</th>')
+	end for each
+	
+	writeln("  </tr>")
+	
+	// Now write the row data
+	$cell := "    <td>$v</td>"
+	
+	if (records in selection($inTable->) > 0)
+		for ($i; 1; records in selection($inTable->))
+			goto selected record($inTable->; $i; $autoRelate)
+			$class := choose($i = $selected; "current"; "")			
+			writeln('  <tr>\n    <td class="label num $class">$i</td>')
+			
+			for each ($fields; $field; $fi)
+				$type := type($field->)
+				
+				case of
+					:($type = Is Alpha Field) | ($type = Is Text)
+						$value := mac to html($field->; *)
+						
+					:($type = Is Date) | ($type = Is Time)
+						// These types take a numeric format
+						if (length($fieldFormats{$fi}) > 0)
+							execute('\$format := $fieldFormats{$fi}')
+							$value := mac to html(string($field->; $format); *)
+						else
+							$value := mac to html(string($field->); *)
+						end if
+						
+					:($type = Is Boolean)
+						$value := choose($field->; "True"; "False")
+						
+					:($type = Is Picture)
+						$value := a4d.utils.getPictureDescriptor($field->)
+						
+					:($type = Is Blob)
+						$value := "BLOB ({0,number} bytes)" %% (blob size($field->))
+						
+				else
+					// real, integer, longint
+					$value := mac to html(string($field->; $fieldFormats{$fi}); *)
+				end case
+				
+				writeln(replace string($cell; "$v"; $value))
+			end for each
+			
+			writeln("  </tr>")
+		end for
+	else
+		writeln('  <tr>\n    <td colspan="`size of array($fields) + 1`">[Empty selection]</td>\n  </tr>')
+	end if
+	
+	writeln("</table>\n</div>\n</div>")
+	
+end method
+
+
+
+/***************************************************************************************************
+	addDumpStyles
+***************************************************************************************************/
+
+method "addDumpStyles"
+	
+	if (fusebox.isFuseboxRequest)
+		fusebox.head.addDumpStyles
+	else
+		writeDumpStyles
+	end if
+	
+end method
+
+
+
+/***************************************************************************************************
+	writeDumpStyles
+***************************************************************************************************/
+
+method "writeDumpStyles"
+
+	write("""
+<style type="text/css">
+
+div.a4d-debug {
+	display: inline-block;  /* shrink to fit */
+}
+
+div.a4d-debug, div.a4d-debug th, div.a4d-debug td {
+	font: normal 11px Verdana, Helvetica, Arial, sans-serif;
+	background:	#fff;
+	color: #000;
+	text-align:	left;
+	padding: 0;
+	margin: 0;
+	border: none;
+}
+
+div.a4d-debug table {
+	background: #fff;
+	empty-cells: show;
+	margin: 0;
+	padding: 0
+}
+
+div.a4d-debug .title {
+	background: #9999ff;
+	font-weight: bold;
+	white-space: nowrap;
+}
+
+div.a4d-debug .title span {
+	font-weight: normal;
+}
+
+div.a4d-debug td {
+	background:	#f0f0f0;
+	padding: 5px;
+}
+
+div.a4d-debug th {
+	background: #bbbbff;
+	font-weight: bold;
+	padding: 5px;
+}
+
+div.a4d-debug td.label {
+	background: #d0d0d0;
+	white-space: nowrap;
+}
+
+div.a4d-debug td.top {
+	vertical-align: top;
+}
+
+div.a4d-debug td.inline {
+	width: 720px
+}
+
+div.a4d-debug td.current {
+	background: #ffc9d9;
+}
+
+div.a4d-debug .num {
+	width: 10px;
+	text-align: center;
+}
+
+div.a4d-debug .no-wrap {
+	white-space: nowrap;
+}
+
+</style>
+""")
+	
+end method
+
+
+end library

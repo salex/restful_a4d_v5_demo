@@ -1,0 +1,25 @@
+<% /*
+<fusedoc fuse="dsp_noJS.a4d" language="Active4D" specification="2.0">
+	<responsibilities>
+		I tell the user that JavaScript/cookies are not on and must be, 
+		and I give them a chance to try again.
+	</responsibilities>
+	<io>
+		<in>
+			<string name="$XFA_root" comments="The root URL of the site" />
+		</in>
+	</io>	
+</fusedoc>
+*/ %>
+<div id="content">
+  <div id="checker">
+  
+    <h1>JavaScript/cookies not enabled</h1>
+	
+    <p>To use this site you must have JavaScript and cookies enabled in your browser.
+    Please enable them before trying again (unless you want to end up here again).</p>
+	
+    <p>Once you have enabled both JavaScript and cookies, you may <a href="<%=$XFA_root%>">try again</a>.</p>
+	
+  </div>
+</div>

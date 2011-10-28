@@ -1,0 +1,109 @@
+
+library "Address"
+
+method "cudAddress"($cudAction; $cudPhase; $cudTable; $cudResult; $params; $cudTimestampField; $cudTimestamp)
+	case of 
+		:($cudPhase = "query")
+			unload record([addresses])
+			if ($cudAction # "create")
+					query([addresses]; [addresses]id = num($params{"Address.id"}))
+			end if
+		:($cudPhase = "update") 
+			rest.buildFromParams("addresses";$params)
+		:($cudPhase = "post") 
+			_request{"new_id"} := [addresses]id
+		:($cudPhase = "delete") 
+		:($cudPhase = "cleanup") 
+	end case
+	return ("success") 
+end method 
+
+method "create"($attributes)
+	start transaction
+	$cudAction := "create"
+	$params := a4d.utils.filtercollection($attributes;"Address.@")
+	$result := a4d.utils.cud($cudAction; ->[addresses]; "cudAddress"; $params)
+	if ($result # "success")
+		cancel transaction
+		return($result)
+	end if
+	
+	validate transaction
+	return($result)
+end method
+
+method "update"($attributes)
+	start transaction
+	$cudAction := "update"
+	$params := a4d.utils.filtercollection($attributes;"Address.@")
+	$params{"Address.id"} := $attributes{"id"} // id is in rest path
+	$result := a4d.utils.cud($cudAction; ->[addresses]; "cudAddress"; $params)
+	if ($result # "success")
+		cancel transaction
+		return($result)
+	end if
+	
+	validate transaction
+	return($result)
+	
+end method
+
+method "delete"($attributes)
+	start transaction
+	$params := a4d.utils.filtercollection($attributes;"Address.@")
+	$cudAction := "delete"
+	$params{"Address.id"} := $attributes{"id"} // id is in rest path
+	$result := a4d.utils.cud($cudAction; ->[addresses]; "cudAddress"; $params)
+	if ($result # "success")
+		cancel transaction
+		return("Failed in Address: "$result)
+	end if
+	
+	
+	
+	
+	validate transaction
+	return($result)
+end method
+
+method "find_all"($attributes)
+	
+	all records([addresses])
+	
+	$callback := """
+	
+	"""
+	$include_map := ""
+	if ($attributes{"ftr"})
+		_filter($attributes)
+	end if
+	if ($attributes{"bst"})
+		$attributes{"pbst"} := $attributes{"bst"}
+	else
+		if ($attributes{"pbst"})
+			$attributes{"bst"} := $attributes{"pbst"}
+		end if
+	end if
+	
+	return(rest.build_rowset("Address";$attributes;new collection("include_map";$include_map;"callback" ;$callback)))
+end method
+
+method "find"($attributes)
+	return(rest.find("Address";$attributes{"id"}))
+end method
+
+method "find_related"($relModel;$attributes;$parent=0)
+	return(rest.find_related("Address";$relModel;$attributes;$parent))
+end method
+
+method "new"($attributes)
+	return(rest.new("Address"))
+end method
+
+method "_filter"($attributes)
+		
+	
+end method
+
+end library
+

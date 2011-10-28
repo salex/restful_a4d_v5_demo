@@ -1,0 +1,78 @@
+
+<%
+// Make the base query string for the edit links
+$baseQuery := a4d.web.collectionItemsToQuery($attributes; "ftr;ftr_name;pbst")
+
+%>
+<div class="box dform">
+	<form name="form"  action="<%=$form_action%>" method="post" onsubmit="return submitForm();">
+		<fieldset>
+			<legend>Ingredient Information <%=choose($attributes{"id"} = "new";' - Adding Ingredient';"")%></legend>
+		
+				<div>
+					
+						<label>Name</label>
+						<%=html.text_field_tag("ingredient.name";$ingredient{"ingredient.name"})  %>
+						
+					<br />
+				</div>
+		
+				<div>
+					
+						<label>Ship Qty</label>
+						<%=html.text_field_tag("ingredient.ship_qty";$ingredient{"ingredient.ship_qty"})  %>
+						
+					<br />
+				</div>
+		
+				<div>
+					
+						<label>Ship Unit Id</label>
+						<%=html.text_field_tag("ingredient.ship_unit_id";$ingredient{"ingredient.ship_unit_id"})  %>
+						
+					<br />
+				</div>
+		
+				<div>
+					
+						<label>Price</label>
+						<%=html.text_field_tag("ingredient.price";$ingredient{"ingredient.price"})  %>
+						
+					<br />
+				</div>
+		
+			<div>
+				<%=html.hidden_field_tag("Ingredient_id";$attributes{"id"})%>
+<%=html.hidden_field_tag("unit_id";$unit{"unit.id"})%>
+<%=html.hidden_field_tag("vendor_id";$vendor{"vendor.id"})%>
+
+				<% if(defined($valid_parent))
+					write($valid_parent)
+				end if %>
+				
+				<%if($submitAction = "update")%>
+					<%=html.hidden_field_tag("_method";"put")%>
+				<%end if%>
+				<% =html.hidden_field_tag("_referer";_request{"_referer"})%>
+			
+			</div>
+			
+			<div class="dactions">
+				<input name="b_save" type="submit" value="<%=$submitAction%>" />
+				<b>Cancel [</b>
+				<%if($attributes{"id"} # "new") %>
+					
+					<a class="dlink-button"  href="<%=rest.controller_path("Ingredients";$Ingredient{"Ingredient.id"};$baseQuery) %>">Show</a>
+					
+				<%end if %>
+				<a class="dlink-button"  href="<%=rest.controller_path("Ingredients";-1;$baseQuery) %>">Return to Ingredients</a>
+				
+	<% $rid := $Ingredient{"Ingredient.vendor_id"} %>
+	<a class="dlink-button"  href="<%=rest.controller_path("Vendors";$rid;$baseQuery) %>">Return to Vendor</a>
+	<a class="dlink-button"  href="<%=rest.controller_path("Vendors";-1;$baseQuery) %>">Return to Vendors</a>
+	
+				<b>]</b>
+			</div>
+		</fieldset>
+	</form>
+</div>

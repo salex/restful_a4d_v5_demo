@@ -1,0 +1,18 @@
+/*
+	Ingredients library
+
+*/
+
+library "Ingredients"
+
+
+
+method "testme"($attributes)
+	all records([ingredients])
+	order by([ingredients]; [ingredients]id; >)  //TODO substitute order_by from $rest
+	$Ingredients := rest.build_rowset("Ingredient";$attributes)
+	return($Ingredients)
+end method
+
+end library
+

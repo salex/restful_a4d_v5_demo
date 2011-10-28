@@ -1,0 +1,1078 @@
+/*
+	Active4D private -- DO NOT EDIT!
+
+	Copyright (c) 2003-2009 Aparajita Fishman, All Rights Reserved
+*/
+
+library "a4d.web"
+
+
+
+/**********************************************************************************
+	Constants useful for building state menus
+**********************************************************************************/
+
+// This constant is useful for building state menus with the buildOptionsMenu or buildOptionsValueMenu methods.
+
+define(kUS_States; "AK;AL;AR;AZ;CA;CO;CT;DC;DE;FL;GA;HI;IA;ID;IL;IN;KS;KY;LA;MA;MD;ME;MI;MN;MO;MS;MT;NC;ND;NE;NH;NJ;NM;NV;NY;OH;OK;OR;PA;PR;RI;SC;SD;TN;TX;UT;VA;VI;VT;WA;WI;WV;WY")
+
+
+// NOTE: These names do not match the order of kUS_States, as the sorting does not match.
+// To use these with state codes, use kUS_UnsortedStateCodes.
+
+define(kUS_SortedStateNames; "Alabama;Alaska;Arizona;Arkansas;California;Colorado;Connecticut;Delaware;Florida;Georgia;Hawaii;Idaho;Illinois;Indiana;Iowa;Kansas;Kentucky;Louisiana;Maine;Maryland;Massachusetts;Michigan;Minnesota;Mississippi;Missouri;Montana;Nebraska;New Hampshire;New Jersey;New Mexico;New York;Nevada;North Carolina;North Dakota;Ohio;Oklahoma;Oregon;Pennsylvania;Puerto Rico;Rhode Island;South Carolina;South Dakota;Tennessee;Texas;Utah;Virgin Islands;Virginia;Vermont;Washington;Washington DC;Wisconsin;West Virginia;Wyoming")
+
+define(kUS_UnsortedStateCodes; "AL;AK;AZ;AR;CA;CO;CT;DE;FL;GA;HI;ID;IL;IN;IA;KS;KY;LA;ME;MD;MA;MI;MN;MS;MO;MT;NE;NH;NJ;NM;NY;NV;NC;ND;OH;OK;OR;PA;PR;RI;SC;SD;TN;TX;UT;VI;VA;VT;WA;DC;WI;WV;WY")
+
+define(kNorthAmericanStates; "AB;AK;AL;AR;AZ;BC;CA;CO;CT;DC;DE;FL;GA;HI;IA;ID;IL;IN;KS;KY;LA;MA;MB;MD;ME;MI;MN;MO;MS;MT;NB;NC;ND;NE;NF;NH;NJ;NM;NS;NV;NY;OH;OK;ON;OR;PA;PE;PR;QC;RI;SC;SD;SK;TN;TX;UT;VA;VI;VT;WA;WI;WV;WY")
+
+
+
+/***********************************************************************************
+	getVariablesIterator
+	
+	RESULT	<-	Iterator	Figures out which collection holds request values.
+***********************************************************************************/
+
+method "getVariablesIterator"
+	
+	case of
+		:(parameter mode = A4D Parameter Mode Separate)
+			if (get request info("*request method") = "POST")
+				return (_form)
+			else
+				return (_query)
+			end if
+			
+		:(parameter mode = A4D Parameter Mode Form)
+			return (_form)
+			
+		:(parameter mode = A4D Parameter Mode Query)
+			return (_query)
+	end case
+	
+end method
+
+
+
+/***********************************************************************************
+	embedVariables
+	
+	$inFilter	->	Text	See embedCollection for description.
+	
+	If there are any form variables, embeds those in the current form, otherwise
+	embeds the query string params (if any).
+***********************************************************************************/
+
+method "embedVariables"($inFilter = "")
+	
+	embedCollection(getVariablesIterator; $inFilter)
+	
+end method
+
+
+
+/***********************************************************************************
+	embedQueryParams
+	
+	$inFilter	->	Text	See embedCollection for description.
+	
+	Takes the current query params and creates hidden form fields.
+	Use this to pass the query params in a form.
+***********************************************************************************/
+
+method "embedQueryParams"($inFilter = "")
+	
+	embedCollection(_query; $inFilter)
+	
+end method
+
+
+
+/***********************************************************************************
+	embedFormVariables
+	
+	$inFilter	->	Text	See embedCollection for description.
+	
+	Takes the current form variables and creates hidden form fields.
+	Use this to pass the form variables in a form.
+***********************************************************************************/
+
+method "embedFormVariables"($inFilter = "")
+	
+	embedCollection(_form; $inFilter)
+	
+end method
+
+
+
+/***********************************************************************************
+	embedFormVariableList
+	
+	$inVariables	->	Text		Semicolon-delimited list of form variables
+	
+	To embed a number of posted form variables in the current form in order to "pass" 
+	them on, call this method.
+***********************************************************************************/
+
+method "embedFormVariableList"($inVariables)
+	
+	embedCollectionItems(_form)
+	
+end method
+
+
+
+/***********************************************************************************
+	embedCollectionItems
+	
+	$inCollection	->	Collection|Iterator	Collection from which to get items
+	$inItems		->	Text				Semicolon-delimited list of item keys
+	
+	To embed a number of collection items in the current form in order to "pass" 
+	them on, call this method.
+***********************************************************************************/
+
+method "embedCollectionItems"($inCollection; $inItems)
+	
+	c_longint($count)
+	array text($items; 0)
+	$count := split string($inItems; ";"; $items)
+	
+	for ($i; 1; $count)
+		if (collection has($inCollection; $items{$i}))
+			for ($j; 1; get collection item count($inCollection; $items{$i}))
+				hideField($items{$i}; $inCollection{$items{$i}}{$j})
+			end for
+		end if
+	end for
+	
+end method
+
+
+
+/***********************************************************************************
+	collectionItemsToQuery
+	
+	$inCollection	->	Collection|Iterator	Collection from which to get items
+	$inItems		->	Text				Semicolon-delimited list of item keys
+	$inSwitches		->	String				Switches to control behavior
+	RESULT			<-	Text				URL-encoded query string
+	
+	To create a query string from a collection items in order to "pass" them on, 
+	call this method.
+***********************************************************************************/
+
+method "collectionItemsToQuery"($inCollection; $inItems; $inSwitches = "")
+	
+	c_text($query)
+	$query := ""
+	c_longint($count)
+	array text($items; 0)
+	$count := split string($inItems; ";"; $items)
+	
+	if ($inSwitches)
+		// Have to remove the 'p' switch, it suppresses delimiters
+		$inSwitches := "-" + replace string($inSwitches; "p"; "") + "-"
+	end if
+	
+	for ($i; 1; $count)
+		$item := trim($items{$i})
+		
+		if (collection has($inCollection; $item))
+			for ($j; 1; get collection item count($inCollection; $item))
+				$query := build query string($inSwitches + $query; $item; $inCollection{$item}{$j})
+			end for
+		end if
+	end for
+	
+	// Don't include the leading ? if no 'a' switch
+	if ("a" ~ $inSwitches)
+		return ($query)
+	else
+		return (substring($query; 2))
+	end if
+	
+end method
+
+
+
+/***********************************************************************************
+	_parseQuerySwitches  [private]
+	
+	$inSwitches		->	String		Switches to control query string behavior
+	$outUrlEncoded	<-	Boolean		Whether the query parameters are already url encoded
+	$outDelimiter	<-	String		Delimiter to use between query parameters
+	$outISO			<-	Boolean		Whether the query parameters are already ISO-8859-1
+	
+	This method parses the same switches that are used with the 'build query string'
+	command, but the no-prefix mode switch is ignored.
+***********************************************************************************/
+
+method "_parseQuerySwitches"($inSwitches; &$outUrlEncode; &$outDelimiter; &$outISO)
+
+	// Figure out the switches, which determine the delimiter
+	$outDelimiter := ";"
+	$outUrlEncode := true
+	$outISO := false
+	
+	if ($inSwitches)
+		$outUrlEncode := "u" ~ $inSwitches
+		$outISO := "i" ~ $inSwitches
+		
+		if ("e" ~ $inSwitches)
+			if ("r" ~ $inSwitches)
+				$outDelimiter := "&"
+			else
+				$outDelimiter := "&amp;"
+			end if
+		end if
+	end if
+
+end method
+
+
+
+/***********************************************************************************
+	formVariableListToQuery
+	
+	$inVariables	->	Text		Semicolon-delimited list of form variables
+	$inSwitches		->	String		Switches to control the formatting of the query
+	RESULT			<-	Text		Query string
+	
+	To create a query string from a number of form variables in order to "pass" 
+	them on, call this method.
+***********************************************************************************/
+
+method "formVariableListToQuery"($inVariables; $inSwitches = "")
+	
+	return (collectionItemsToQuery(_form; $inVariables; $inSwitches))
+	
+end method
+
+
+
+/***********************************************************************************
+	collectionToQuery
+	
+	$inCollection	->	Collection | Iterator
+	$inFilter		->	Text		Optional text to match against.
+									Collection items whose keys match this are filtered. 
+									If the first character is '+', it is an inclusion filter, 
+									if '-' an exclusion filter. Neither defaults to inclusion.
+									If the first and last character of the filter (after
+									a +/-) is /, a regular expression match is done.
+	RESULT			<-	String		URL encoded query string
+	
+	Creates a query string from items in the collection.
+***********************************************************************************/
+
+method "collectionToQuery"($inCollection; $inFilter = "")
+	
+	if (not(is an iterator($inCollection)))
+		$inCollection := collection($inCollection)
+	end if
+	
+	c_text($key)
+	$query := ""
+	
+	if (not($inFilter))
+		while (more items($inCollection))
+			$key := get item key($inCollection)
+			
+			for ($i; 1; get collection item count($inCollection; $key))
+				$query := build query string($query; $key; $inCollection{$key}{$i})
+			end for
+			
+			next item($inCollection)
+		end while
+	else
+		c_boolean($exclude; $use)
+		
+		case of
+			:($inFilter[[1]] = "+")
+				$exclude := false
+				$inFilter := substring($inFilter; 2)
+				
+			:($inFilter[[1]] = "-")
+				$exclude := true
+				$inFilter := substring($inFilter; 2)
+				
+		else
+			$exclude := false
+		end case
+		
+		$regex := $inFilter[[1]] = "/"
+		
+		while (more items($inCollection))
+			$key := get item key($inCollection)
+			
+			if ($regex)
+				if ($exclude)
+					$use := ($key #~ $inFilter)
+				else
+					$use := ($key =~ $inFilter)
+				end if
+			else
+				if ($exclude)
+					$use := ($key # $inFilter)
+				else
+					$use := ($key = $inFilter)
+				end if
+			end if
+			
+			if ($use)
+				for ($i; 1; get collection item count($inCollection; $key))
+					$query := build query string($query; $key; $inCollection{$key}{$i})
+				end for
+			end if
+			
+			next item($inCollection)
+		end while
+	end if
+	
+	// Remove the leading ? from the query
+	return (substring($query; 2))
+	
+end method
+
+
+
+/***********************************************************************************
+	embedCollection
+	
+	$inCollection	->	Collection | Iterator
+	$inFilter		->	Text		Optional text to match against.
+									Collection items whose keys match this are filtered. 
+									If the first character is '+', it is an inclusion filter, 
+									if '-' an exclusion filter. Neither defaults to inclusion.
+									If the first and last character of the filter (after
+									a +/-) is /, a regular expression match is done.
+	
+	Creates hidden form fields from items in the collection.
+***********************************************************************************/
+
+method "embedCollection"($inCollection; $inFilter = "")
+	
+	if (not(is an iterator($inCollection)))
+		$inCollection := collection($inCollection)
+	end if
+	
+	c_text($key)
+	
+	if (not($inFilter))
+		while (more items($inCollection))
+			$key := get item key($inCollection)
+			
+			for ($i; 1; get collection item count($inCollection; $key))
+				hideField($key; $inCollection{$key}{$i})
+			end for
+			
+			next item($inCollection)
+		end while
+	else
+		c_boolean($exclude; $use)
+		
+		case of
+			:($inFilter[[1]] = "+")
+				$exclude := false
+				$inFilter := substring($inFilter; 2)
+				
+			:($inFilter[[1]] = "-")
+				$exclude := true
+				$inFilter := substring($inFilter; 2)
+				
+		else
+			$exclude := false
+		end case
+		
+		$regex := $inFilter[[1]] = "/"
+		
+		while (more items($inCollection))
+			$key := get item key($inCollection)
+			
+			if ($regex)
+				if ($exclude)
+					$use := ($key #~ $inFilter)
+				else
+					$use := ($key =~ $inFilter)
+				end if
+			else
+				if ($exclude)
+					$use := ($key # $inFilter)
+				else
+					$use := ($key = $inFilter)
+				end if
+			end if
+			
+			if ($use)
+				for ($i; 1; get collection item count($inCollection; $key))
+					hideField($key; $inCollection{$key}{$i})
+				end for
+			end if
+			
+			next item($inCollection)
+		end while
+	end if
+	
+end method
+
+
+
+/***********************************************************************************
+	buildRecordList
+	
+	NOTE: This method is deprecated. Please use buildOptionsFromRecords instead.
+***********************************************************************************/
+
+method "buildRecordList"($inValueField; $inOptionField; $inInitalValue)
+	
+	buildOptionsFromSelection($inOptionField; $inValueField; $inInitalValue)
+	
+end method
+
+
+
+/***********************************************************************************
+	buildOptionsFromSelection
+	
+	$inOptionField	->	Field pointer	Points to option texts
+	$inValueField	->	Field pointer	Points to option values
+	$inInitialValue	->	<any>			Value of option to select initially
+	
+	When you want to create a choice list from the current selection of a table,
+	use this method. $inInitialValue must be assignment compatible with $inValueField.
+	
+	If String($inValueField->) evaluates to "0", the option text will be <Default>.
+	
+	Note that this method only builds the OPTIONs of a SELECT object, 
+	not the SELECT object itself.
+***********************************************************************************/
+
+method "buildOptionsFromSelection"($inOptionField; $inValueField; $inInitalValue)
+	
+	c_pointer($table)
+	$table := table(table($inValueField))
+	
+	while (not(end selection($table->)))
+		write("<option ")
+		
+		if ($inValueField-> = $inInitalValue)
+			write("selected=\"selected\" ")
+		end if
+		
+		write('value="`$inValueField->`">')
+		
+		if (string($inValueField->) = "0")
+			write("&lt;Default&gt;")
+		else
+			write(mac to html($inOptionField->; *))
+		end if
+		
+		write("</option>\n")
+		next record($table->)
+	end while
+	
+end method
+
+
+
+/***********************************************************************************
+	buildOptionsFromRowSet
+	
+	$inRowSet		->	RowSet	Rows from which to get data
+	$inOptionColumn	->	Text	Name of column which contains option texts
+	$inValueColumn	->	Text	Name of column which contains option values
+	$inInitialIndex	->	Number	Index of option to select initially, 0 to use $inInitialValue	
+	$inInitialValue	->	<any>	Value of option to select initially	
+	
+	When you want to create a choice list from a RowSet, use this method. 
+	If $inValueColumn is empty, $inOptionColumn is used for
+	the option value. To select an option other than the first one in the RowSet,
+	pass its value in $inInitialValue, otherwise pass an empty string. If you
+	do pass a value, it must be of the same type as the type of the value column
+	if used, or the option column otherwise. The option and value columns must
+	be of a type that can be converted via the String command (which includes String/Text).
+	
+	Note that this method only builds the OPTIONs of a SELECT object, 
+	not the SELECT object itself.
+***********************************************************************************/
+
+method "buildOptionsFromRowSet"($inRowSet; $inOptionColumn; $inValueColumn; $inInitialIndex; $inInitialValue = "")
+	
+	if (not($inValueColumn))
+		$inValueColumn := $inOptionColumn
+	end if
+	
+	c_longint($row)
+	
+	while ($inRowSet->next)
+		$row := $inRowSet->getRow
+		write("<option ")
+		
+		if ($inInitialIndex = 0)
+			if ($row{$inValueColumn} = $inInitialValue)
+				write("selected=\"selected\" ")
+			end if
+		else
+			if ($inInitialIndex = $inRowSet->currentRow)
+				write("selected=\"selected\" ")
+			end if
+		end if
+		
+		write("value=" + enclose(mac to html(string($row{$inValueColumn}))) + ">")
+		write(mac to html(string($row{$inOptionColumn})) + "</option>\n")
+	end while
+	
+end method
+
+
+
+/***********************************************************************************
+	buildSelectMenu
+	
+	NOTE: This method is deprecated. Please use buildOptionsFromOptionList instead.
+***********************************************************************************/
+
+method "buildSelectMenu"($inOptions; $inInitialIndex; $inInitialValue = ""; $inDelimiter = ";")
+	
+	split string($inOptions; $inDelimiter; $options; false)
+	buildOptionsFromOptionArray($options; $inInitialIndex; $inInitialValue)
+	
+end method
+
+
+
+/***********************************************************************************
+	buildOptionsFromOptionList
+	
+	$inOptions			->	Text		Delimited list of options/values
+	$inInitalIndex		->	Number		Index of option to select, 0 to use $inInitalValue
+	$inInitialValue		->	<any>		Value of option to select
+	$inDelimiter		-> 	Text		Delimiter used to split $inValues
+	
+	This is the same as buildOptionsFromValueArray, but uses a delimited list for the values
+	instead of an array.
+	
+	Note that this method only builds the OPTIONs of a SELECT object, 
+	not the SELECT object itself.
+***********************************************************************************/
+
+method "buildOptionsFromOptionList"($inOptions; $inInitialIndex; $inInitialValue = ""; $inDelimiter = ";")
+	
+	split string($inOptions; $inDelimiter; $options; false)
+	buildOptionsFromOptionArray($options; $inInitialIndex; $inInitialValue)
+	
+end method
+
+
+
+/***********************************************************************************
+	buildArrayList
+	
+	NOTE: This method is deprecated. Please use buildOptionsFromOptionArray instead.
+***********************************************************************************/
+
+method "buildArrayList"(&$inArray; $inInitialIndex; $inInitialValue = "")
+	
+	buildOptionsFromOptionArray($inArray; $inInitialIndex; $inInitialValue)
+	
+end method
+
+
+
+/***********************************************************************************
+	buildOptionsFromOptionArray
+	
+	$inArray			->	Array 	Array to use for options/values
+	$inInitalIndex		->	Number	Index of option to select, 0 to use $inInitalValue
+	$inInitialValue		->	<any>	Value of option to select
+	
+	When you want to create a choice list from an array, use this method.
+	The array can be any type to which the String command can
+	be applied to its elements. $inInitialValue must be assignment compatible
+	with $inArray. If $inInitialIndex > 0, it is used and $inInitialValue is ignored, 
+	and the value of each OPTION will be its index.
+	
+	Note that this method only builds the OPTIONs of a SELECT object, 
+	not the SELECT object itself.
+***********************************************************************************/
+
+method "buildOptionsFromOptionArray"(&$inArray; $inInitialIndex; $inInitialValue = "")
+	
+	c_longint($size; $selected)
+	c_boolean($valueIsIndex)
+	$size := size of array($inArray)
+	
+	if ($inInitialIndex > 0)
+		$selected := $inInitialIndex
+		$valueIsIndex := true
+	else
+		$selected := find in array($inArray; $inInitialValue)
+		$valueIsIndex := false
+	end if
+	
+	if (($selected < 0) | ($selected > size of array($inArray)))
+		$selected := 0
+	end if
+	
+	for ($i; 1; $size)
+		write("<option ")
+		
+		if ($i = $selected)
+			write("selected=\"selected\"")
+		end if
+		
+		if ($valueIsIndex)
+			write(' value="$i"')
+		end if
+		
+		write(">" + mac to html(string($inArray{$i})) + "</option>\n")
+	end for
+	
+end method
+
+
+
+/***********************************************************************************
+	buildSelectValueMenu
+	
+	NOTE: This method is deprecated. Please use buildOptionsFromLists instead.
+***********************************************************************************/
+
+method "buildSelectValueMenu"($inOptions; $inValues; $inInitialIndex; $inInitialValue = ""; $inDelimiter = ";")
+	
+	split string($inOptions; $inDelimiter; $options; false)
+	split string($inValues; $inDelimiter; $values; false)
+	buildOptionsFromArrays($options; $values; $inInitialIndex; $inInitialValue)
+	
+end method
+
+
+
+/***********************************************************************************
+	buildOptionsFromLists
+	
+	$inOptions			->	Text		Delimited list of option texts
+	$inValues			->	Text		Delimited list of option values
+	$inInitalIndex		->	Number		Index of option to select, 0 to use $inInitalValue
+	$inInitialValue		->	<any>		Value of option to select
+	$inDelimiter		-> 	Text		Delimiter used to split $inOptions/$inValues
+	
+	This is the same as buildOptionsFromOptionList, but lets you pass your own 
+	custom list of option values.
+	
+	Note that this method only builds the OPTIONs of a SELECT object, 
+	not the SELECT object itself.
+***********************************************************************************/
+
+method "buildOptionsFromLists"($inOptions; $inValues; $inInitialIndex; $inInitialValue = ""; $inDelimiter = ";")
+	
+	split string($inOptions; $inDelimiter; $options; false)
+	split string($inValues; $inDelimiter; $values; false)
+	buildOptionsFromArrays($options; $values; $inInitialIndex; $inInitialValue)
+	
+end method
+
+
+
+/***********************************************************************************
+	buildArrayValueList
+	
+	NOTE: This method is deprecated. Please use buildOptionsFromArrays instead.
+***********************************************************************************/
+
+method "buildArrayValueList"(&$inOptions; &$inValues; $inInitialIndex; $inInitialValue = "")
+	
+	buildOptionsFromArrays($inOptions; $inValues; $inInitialIndex; $inInitialValue)
+	
+end method
+
+
+
+/***********************************************************************************
+	buildOptionsFromArrays
+	
+	$inOptions			->	Array	Array to use for option text
+	$inValues			->	Array	Array to use for option values
+	$inInitalIndex		->	Number	Index of option to select, 0 to use $inInitalValue
+	$inInitialValue		->	<any>	Value of option to select
+	
+	When you want to create a choice list from an array, use this method.
+	The array can be any type to which the String command can be applied to its 
+	elements (which includes String/Text Arrays). $inInitialValue must be 
+	assignment compatible with the elements of $inValues. If $inInitialIndex > 0, 
+	it is used and $inInitialValue is ignored.
+	
+	Note that this method only builds the OPTIONs of a SELECT object, 
+	not the SELECT object itself.
+***********************************************************************************/
+
+method "buildOptionsFromArrays"(&$inOptions; &$inValues; $inInitialIndex; $inInitialValue = "")
+	
+	c_longint($size; $selected)
+	$size := size of array($inOptions)
+	
+	if ($inInitialIndex > 0)
+		$selected := $inInitialIndex
+	else
+		$selected := find in array($inValues; $inInitialValue)
+	end if
+	
+	if (($selected < 0) | ($selected > size of array($inOptions)))
+		$selected := 0
+	end if
+	
+	for ($i; 1; $size)
+		write("<option value=" + enclose(trim(string($inValues{$i}))))
+		
+		if ($i = $selected)
+			write(" selected=\"selected\"")
+		end if
+		
+		write('>$inOptions{$i}</option>\n')
+	end for
+	
+end method
+
+
+
+/***********************************************************************************
+	hideField
+	
+	$inName		->	Text	Name of hidden field
+	$inValue	->	<any>	Value of hidden field
+	$inEncode	->	Boolean	True to HTML encode $inValue
+	
+	Creates a hidden field within the current form.
+***********************************************************************************/
+
+method "hideField"($inName; $inValue; $inEncode = true)
+	
+	if ($inEncode)
+		$inValue := mac to html(string($inValue); *)
+	end if
+	
+	write('<input type="hidden" id="$inName" name="$inName" value="$inValue" />\n')
+	
+end method
+
+
+
+/***********************************************************************************
+	getUniqueID
+	
+	RESULT	<-	Text	Unique ID
+	
+	Generates a unique value sufficient to make a browser think a page is new
+	if added as a query parameter to the URL.
+***********************************************************************************/
+
+method "getUniqueID"
+	
+	c_text($unique)
+	$unique := string(milliseconds) + current process
+	return ($unique)
+	
+end method
+
+
+
+/***********************************************************************************
+	hideUniqueField
+	
+	$inName	->	Text	Name of hidden unique ID field
+	
+	Generates a hidden field within the current form with a unique value sufficient
+	to make a browser think a page is new.
+***********************************************************************************/
+
+method "hideUniqueField"($inName)
+	
+	hideField($inName; getUniqueID)
+	
+end method
+
+
+
+/***********************************************************************************
+	checkboxState
+	
+	$inState	->	Boolean	| Text		State of a checkbox, should be "1" or "0" if text
+	
+	A convenience method for dynamically setting a checkbox state.
+	Writes the text ' checked="checked"' or nothing based on $inState.
+***********************************************************************************/
+
+method "checkboxState"($inState)
+	
+	c_boolean($state)
+	
+	case of
+		:(type($inState) = Is Boolean)
+			$state := $inState
+			
+		:(type($inState) = Is Text) | (type($inState) = Is Alpha Field)
+			$state := ($inState = "1")
+			
+		else
+			$state := false
+	end case
+	
+	if ($state)
+		write(" checked=\"checked\"")
+	end if
+	
+end method
+
+
+
+/***********************************************************************************
+	writeBold
+	
+	$inText	->	Text		Text to write
+	$inBold	->	Boolean		If true, $inText is enclosed in a <b></b> tag pair
+	
+	Writes $inText in bold if $inBold is true.
+***********************************************************************************/
+
+method "writeBold"($inText; $inBold)
+	
+	if ($inBold)
+		write("<b>")
+	end if
+	
+	write($inText)
+	
+	if ($inBold)
+		write("</b>")
+	end if
+	
+end method
+
+
+
+/***********************************************************************************
+	validEmailAddress
+	
+	$inAddress	->	Text		Address to check
+	RESULT		<-	Boolean		True if valid, false if not
+	
+	Validates that inAddress is valid in a way that should cover the majority of
+	possible email addresses. Note that full validation according to RFC822
+	would require a regular expression that is 6K characters in length!
+***********************************************************************************/
+
+method "validEmailAddress"($inAddress)  // -> outValid
+	
+	return (trim($inAddress) =~ "/^([a-z0-9_+]|\-|\.)+@(([a-z0-9_]|\-)+\.)+[a-z]{2,4}$/i")
+	
+end method
+
+
+
+/***********************************************************************************
+	makeSafeMailto
+	
+	$inAddress	->	Text		Address to format
+	$inQuery	->	Text		Query string (url encoded)
+	RESULT		<-	Text		Safely formatted mailto: address
+	
+	Formats an email address for use in a mailto: link so it is reasonably safe 
+	from harvesting	by spammers.
+***********************************************************************************/
+
+method "makeSafeMailto"($inAddress; $inQuery = "")
+	
+	$inAddress := replace string($inAddress; "@"; "&#0064;")
+	$inAddress := replace string($inAddress; "."; "&#0046;")
+	$address := '<a href="&#0109;ailto&#0058;$inAddress'
+	
+	if ($inQuery)
+		if ($inQuery[[1]] # "?")
+			$address += "?"
+		end if
+		
+		$address += $inQuery
+	end if
+	
+	return ($address + '">$inAddress</a>')
+	
+end method
+
+
+
+/***********************************************************************************
+	checkSession
+	
+	$inItemToCheck		->	Text	Name of item in current session to check for
+	$inRedirectURL		->	Text	URL of page to redirect to if $inItemToCheck does not exist
+	$inQueryString		->	Text	Query string to pass to $inRedirectURL
+	
+	It is important that you detect when a session has timed out or when no session
+	exists. This is easily done by designating one session item (such as a user id) 
+	which only exists when a user has successfully logged in to the site.
+
+	You then need to check the session before displaying every page that relies on
+	a current session. This method is a convenience method for checking the session.
+	
+	You pass the designated session item in $inItemToCheck. If the item does not exist, 
+	a redirect is performed to $inRedirectURL, passing $inQueryString.
+	
+	NOTE: If you are using fusebox, do not use this method.
+***********************************************************************************/
+
+method "checkSession"($inItemToCheck; $inRedirectURL; $inQuery = "")
+	
+	if (not(session has($inItemToCheck)))
+		c_text($url)
+		$url := $inRedirectURL
+		
+		if ($inQuery)
+			if ($inQuery[[1]] # "?")
+				$url += "?"
+			end if
+			
+			$url += $inQuery
+		end if
+		
+		abandon session
+		redirect($url)
+	end if
+	
+end method
+
+
+
+/***********************************************************************************
+	validateTextFields
+	
+	See getEmptyFields
+***********************************************************************************/
+
+method "validateTextFields"($inFieldList)
+	
+	return (getEmptyFields($inFieldList))
+	
+end method
+
+
+
+/***********************************************************************************
+	getEmptyFields
+	
+	inFieldList		->	Text	Semicolon-delimited list of form fields to validate
+	RESULT			<-	Text	Semicolon-delimited list of empty fields
+	
+	For each field in the list inFieldList, checks the form variables collection
+	for that field. If it does not exist or is empty, its name is added to the result
+	list.
+***********************************************************************************/
+
+method "getEmptyFields"($inFieldList)
+	
+	array text($fields; 0)
+	split string($inFieldList; ";"; $fields)
+	c_longint($i; $numFields)
+	c_text($invalidFields)
+	
+	$numFields := size of array($fields)
+	$invalidFields := ""
+	
+	for ($i; 1; $numFields)
+		if (not(is array(type(_form{$fields{$i}}))))
+			$field := trim(_form{$fields{$i}})
+		
+			if ($field = "")
+				$invalidFields := concat(";"; $fields{$i}; $invalidFields)
+			end if
+		end if
+	end for
+	
+	return ($invalidFields)
+	
+end method
+
+
+
+/***********************************************************************************
+	warnInvalidField
+	
+	$inCurrentField		->	Text	The current field we are checking
+	$inInvalidFields	->	Text	Semicolon-delimited list of invalid form fields
+	$inWarningURL		->	Text	URL of warning icon to display
+	
+	If $inCurrentField is in the list $inInvalidFields, an image tag is written
+	to display $inWarningURL. The format of $inInvalidFields is that returned by
+	the ValidateTextFields method.
+***********************************************************************************/
+
+method "warnInvalidField"($inCurrentField; $inInvalidFields; $inWarningURL = "/images/warning.gif")
+	
+	if ($inCurrentField ~ $inInvalidFields)
+		write('<img src="$inWarningURL" alt="!" />')
+	end if
+	
+end method
+
+
+
+/***********************************************************************************
+	saveFormToSession
+	
+	$inFilter	->	Text	Matching string for filtering form fields
+	
+	Saves all fields in the form variables collection to the session, except for
+	fields whose names match $inFilter. If $inFilter begins with '+', the form 
+	variables are included if they match the text following. Otherwise the
+	form variables are included if they do not match the text following.
+	If the first and last character of the filter (after a +/-) is /, a regular 
+	expression match is done.
+***********************************************************************************/
+
+method "saveFormToSession"($inFilter = "")
+	
+	c_longint($it)
+	$it := _form
+	$exclude := true
+	$regex := false
+	
+	if ($inFilter)
+		if ($inFilter[[1]] = "+")
+			$exclude := false
+			$inFilter := substring($inFilter; 2)
+		end if
+		
+		if ($inFilter[[1]] = "/")
+			$regex := true
+		end if
+	end if
+	
+	while(more items($it))
+		$field := get item key($it)
+		
+		if ($exclude)
+			if ($regex)
+				$use := $field #~ $inFilter
+			else
+				$use := $field # $inFilter
+			end if
+		else
+			if ($regex)
+				$use := $field =~ $inFilter
+			else
+				$use := $field = $inFilter
+			end if
+		end if
+		
+		if ($use)
+			set session($field; get item value($it))
+		end if
+		
+		next item($it)
+	end while
+	
+end method
+
+
+end library

@@ -1,0 +1,80 @@
+
+<%
+// Make the base query string for the edit links
+$baseQuery := a4d.web.collectionItemsToQuery($attributes; "ftr;ftr_name;pbst")
+
+%>
+<div class="box dform">
+	<form name="form"  action="<%=$form_action%>" method="post" onsubmit="return submitForm();">
+		<fieldset>
+			<legend>Adm_vendor Information <%=choose($attributes{"id"} = "new";' - Adding Adm_vendor';"")%></legend>
+		
+				<div>
+					
+						<label>Name</label>
+						<%=form.text_field_tag("adm_vendor.name";$adm_vendor{"adm_vendor.name"})  %>
+						
+					<br />
+				</div>
+		
+				<div>
+					
+						<label>Phone</label>
+						<%=form.text_field_tag("adm_vendor.phone";$adm_vendor{"adm_vendor.phone"})  %>
+						
+					<br />
+				</div>
+		
+				<div>
+					
+						<label>Contact</label>
+						<%=form.text_field_tag("adm_vendor.contact";$adm_vendor{"adm_vendor.contact"})  %>
+						
+					<br />
+				</div>
+		
+				<div>
+					
+						<label class="textarea">Comments</label>
+						<%=form.textarea_tag("adm_vendor.comments";$adm_vendor{"adm_vendor.comments"}) %>
+					
+					<br />
+				</div>
+		
+				<div>
+					
+						<label>Timestamp</label>
+						<%=form.text_field_tag("adm_vendor.timestamp";$adm_vendor{"adm_vendor.timestamp"})  %>
+						
+					<br />
+				</div>
+		
+			<div>
+				<%=form.hidden_field_tag("Adm_vendor_id";$attributes{"id"})%>
+
+				<% if(defined($valid_parent))
+					write($valid_parent)
+				end if %>
+				
+				<%if($submitAction = "update")%>
+					<%=form.hidden_field_tag("_method";"put")%>
+				<%end if%>
+				<% =form.hidden_field_tag("_referer";_request{"_referer"})%>
+			
+			</div>
+			
+			<div class="dactions">
+				<input name="b_save" type="submit" value="<%=$submitAction%>" />
+				<b>Cancel [</b>
+				<%if($attributes{"id"} # "new") %>
+					
+					<a class="dlink-button"  href="<%=rest.controller_path("Adm_vendors";$Adm_vendor{"Adm_vendor.id"};$baseQuery) %>">Show</a>
+					
+				<%end if %>
+				<a class="dlink-button"  href="<%=rest.controller_path("Adm_vendors";-1;$baseQuery) %>">Return to Adm_vendors</a>
+				
+				<b>]</b>
+			</div>
+		</fieldset>
+	</form>
+</div>

@@ -1,0 +1,68 @@
+<% /*
+<fusedoc fuse="dsp_hello.a4d" language="Active4D" specification="2.0">
+	<responsibilities>
+		I greet the user when he/she first visits the site.
+	</responsibilities>
+</fusedoc>
+*/ 
+
+fusebox.head.setTitle(fusebox.head.getTitle + " - Models")
+
+%>
+<h1>rest.models.json</h1>
+<%include("dlist.a4d")%>
+
+<div id="content-right" class="col-25 dpara"  >
+<h1>Web application described using json</h1>
+
+	<p>rest.models.json is a configuration file located in the rest directory. The file is read and parsed in "on startup" and a
+collection created. It is really nothing more than an expansion of FBX_circuits, in fact the global collection $rest is populated
+in FBX_circuits.a4d. I used json in that it seemed like a simple way of describing a nested collection that was relatively easy to
+parse.</p>
+
+ <p>$rest is used by many of the rest routines. In the simplest form, it only relates the model name (singular) to the controller
+name (plural) and then defines the table name used and the unique id field. All other fields are only needed if you are going to
+used nested models. To use nested routing, you must describe those relationships. There are several other optional field at this
+time: 
+<dl>
+	<dt>order_by</dt>
+		<dd>Describes the default order by. Semicolon list of field name with optional direction symbol at end</dd>
+	<dt>mandatory</dt>
+		<dd>Defines if a foreign key in a belongs_to relation must be defined on create record.</dd>
+	<dt>delete</dt>
+		<dd>Determines if related records are delete if the parent is deleted.</dd>
+</dl>
+</p>
+
+<h1>Current rest.models.json file</h1>
+<%
+	c_blob($fileBlob)
+	$path := get root
+	$bpath := $path+"rest/rest.models.json"
+	if (test path name($bpath) = 1)
+		document to blob($bpath;$fileBlob)
+	end if	
+ %>
+<textarea class="code" rows="30" cols="70">
+<% write($fileBlob) %>
+</textarea>
+	
+
+<p>When the file is parsed in rest.init, some items are expanded. If order_by is present, it is assumed to be a semi-colon
+delimited list with the last character being "<" or ">", or not "<" or ">". It is then expanded to a 4d "order by" statement. A
+controllers collection is also created that points to the model. Almost all use of the collection starts with the model. A dump
+of the $rest collection is below.</p>
+
+
+<p>Some of these relationships are not very meaningful or useful, but they allowed me to test the different relationships.
+ The only thing I modified in the demo structure is to add a polymorphic addresses table. Being able to see what vendor 
+used a unit may not be useful, but tested the "has_many_through" relationship. </p>
+
+
+<p>Now that we&rsquo;ve tied it all together, we can generate circuits using scaffold generation or <a href="/about/rgen">"Rgen"</a>
+<h1>$rest collection dump</h1>
+
+<div class="dtable">
+<%a4d.debug.dump collection($rest)%>
+</div>
+</div>

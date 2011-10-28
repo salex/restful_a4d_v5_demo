@@ -1,0 +1,48 @@
+<%
+$row := $ingredients->getRow
+$alt := true
+%>
+
+
+
+<table cellspacing="0">
+	<tr class="column-heads">
+		
+			<td>Id</td>
+			<td>Name</td>
+			<td>Ship Qty</td>
+			<td>Price</td>
+
+		<td>Actions
+		
+		<a class="dlink-button" href="javascript:document.location='<%=new_controller_path("Vendors/ingredients";num($attributes{"id"}))%>'" onclick="" >Add ingredient</a>
+		
+		</td>
+	</tr>
+
+<%
+	while ($ingredients->next)
+		$alt := not($alt)
+		$rowClass := choose($alt; "alt"; "")
+		%>
+		<tr class="<%$rowClass%>">
+			
+				<td><%=$row{"ingredient.id"}%></td>
+				<td><%=$row{"ingredient.name"}%></td>
+				<td><%=$row{"ingredient.ship_qty"}%></td>
+				<td><%=$row{"ingredient.price"}%></td>
+
+			<td>
+				
+				<a class="dlink-button" href="<%=rest.controller_path("ingredients";$row{"ingredient.id"})%>">Show</a>
+				
+				
+				<a class="dlink-button" href="<%=rest.edit_controller_path("ingredients";$row{"ingredient.id"})%>">Edit</a>
+				
+				
+				<%=delete_link("ingredients";$row{"ingredient.id"}) %>
+				
+			</td>
+		</tr>
+	<%end while%>
+</table>

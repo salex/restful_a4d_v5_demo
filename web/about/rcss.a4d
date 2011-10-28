@@ -1,0 +1,140 @@
+<% /*
+<fusedoc fuse="rcss.a4d" language="Active4D" specification="2.0">
+	<responsibilities>
+		CSS Usage.
+	</responsibilities>
+</fusedoc>
+*/ 
+
+fusebox.head.setTitle(fusebox.head.getTitle + " - CSS Usage")
+
+%>
+<h1>CSS Usage</h1>
+<%include("dlist.a4d")%>
+<div id="content-right" class="col-25 dpara">
+  
+  <p>The CSS for this demo is based on a 960px grid, broken down into 32 30px columns that have a 10px gutter. Most
+of the scaffold selectors start with a "d" and describe basic building blocks. I tried to avoid putting styles on
+id selectors and tried to use only classes. I have avoided &lt;p&gt; tags because of problem IE will have with them
+if you change your mind and want to add another block item inside of it with Javascript. Most class selectors are on an enclosing div or some other block
+element. Some playing with menus and tabs is included. I guess I&rsquo;ll always waste time trying to tweak CSS. You can always
+view the source and get the CSS url (/css/main.css). Again, these are only scaffold styles and should be changed 
+to meet your needs - I just tried to be as simple as I could without looking too ugly.</p>
+
+  <ul class="indent">
+	<li>dform - lays out a basic form using a div, floated label approach</li>
+	<li>dtable - styles a basic table</li>
+	<li>dlist - styles a ul list</li>
+	<li>dmenu - lays out the main menu bar</li>
+	<li>dtab - lays out any included tab/menu bars</li>
+	<li>a.dlink-button - styles a button links</li>
+	<li>dsearch - lays out a search div</li>
+	<li>dactions - lays out an action div</li>
+	
+</ul>
+<br />
+<h1>A basic form using dform</h1>
+	<div class="dform">
+		<fieldset>
+			<legend>This is a test form</legend>
+			<div><label class="w6">A field</label><input type="text" /><br /></div>
+			<div><label class="w6">Another field</label><input type="radio" /><br /></div>
+			<div><label class="w6">An ID </label><span>2345</span><br /></div>
+		</fieldset>
+
+	</div>
+<h1>A form using dform with floated dleft and dright columns</h1>
+	<div class="dform">
+		<fieldset>
+			<legend>This is a bigger form</legend>
+			<div class="dleft col-11">
+				<div><label class="w6">A field</label><input type="text" /><br /></div>
+				<div><label class="w6">Another field</label><input type="radio" /><br /></div>
+				<div><label class="w6">An ID </label><span>2345</span><br /></div>
+			</div>
+			<div class="dright col-11">
+				<div><label class="w6">A field</label><input type="text" /><br /></div>
+				<div><label class="w6">Another field</label><input type="radio" /><br /></div>
+				<div><label class="w6">An ID </label><span>2345</span><br /></div>
+			</div>
+		</fieldset>
+
+	</div>
+
+<h1>A basic link button using a.dlink.button</h1>
+	<div style="height: 3px; "></div>
+	<a class="dlink-button" href="#">A test button link</a>
+	<div style="height: 6px; "></div>
+	<h1>A basic table</h1>
+
+	<div class="dtable">
+		<table>
+			<tr class="column-heads"><td>one for the money</td><td>two for the show</td><td>three to get ready</td></tr>
+			<tr class="alt"><td>one</td><td>two</td><td>three</td></tr>
+			<tr class=""><td>one</td><td>two</td><td>three</td></tr>
+			<tr class="alt"><td>one</td><td>two</td><td>three</td></tr>
+			<tr class=""><td>one</td><td>two</td><td>three</td></tr>
+		</table>
+	</div>
+	<div style="height: 6px; "></div>
+<h1>An action bar using dactions</h1>
+	
+	<div class="dactions">
+		<strong>Actions: </strong>
+		<input type="submit" value="Update" />
+		<a class="dlink-button" href="<%='/one/two'%>">Edit</a>
+		<a class="dlink-button" href="<%='/one/two'%>">Delete</a>
+		<a class="dlink-button" href="<%='/one/two'%>">Clone</a>
+		<a class="dlink-button" href="<%='/one/two'%>">Test</a>
+		<a class="dlink-button"  href="<%='/one/two'%>">Return to Assessments</a>
+	</div>
+	<div style="height: 6px; "></div>
+<h1>A Nav bar over a table using dmenu</h1>
+	
+	<div class="dnav">
+		<div><a href="<%='/one/two'%>">Edit</a></div>
+		<div><a href="<%='/one/two'%>">Delete</a></div>
+		<div><a href="<%='/one/two'%>">Clone</a></div>
+		<div><a class="set" href="<%='/one/two'%>">Test</a></div>
+		<div><a href="<%='/one/two'%>">Logout</a></div>
+		<br class="dclear" />
+	</div>
+	
+	<div class="dtable">
+		<table>
+			<tr class="column-heads"><td>one for the money</td><td>two for the show</td><td>three to get ready</td></tr>
+			<tr class="alt"><td>one</td><td>two</td><td>three</td></tr>
+			<tr class=""><td>one</td><td>two</td><td>three</td></tr>
+			<tr class="alt"><td>one</td><td>two</td><td>three</td></tr>
+			<tr class=""><td>one</td><td>two</td><td>three</td></tr>
+		</table>
+	</div>
+	
+	<h1>A tab bar over a table using dtab</h1>
+	<div class="dtab">
+	    <ul>
+			<li id="vendors" class="">
+				<a href="#">Vendors</a>
+			</li>
+	
+			<li id="Ingredients" class="activelink">
+				<a href="#">Ingredients</a>
+			</li>
+			<li id="units" class="">
+				<a href="#">Units</a>
+			</li>
+	    </ul>
+		<br class="dclear" />
+
+	</div>
+	<div class="dtable">
+		<table>
+			<tr class="column-heads"><td>one for the money</td><td>two for the show</td><td>three to get ready</td></tr>
+			<tr class="alt"><td>one</td><td>two</td><td>three</td></tr>
+			<tr class=""><td>one</td><td>two</td><td>three</td></tr>
+			<tr class="alt"><td>one</td><td>two</td><td>three</td></tr>
+			<tr class=""><td>one</td><td>two</td><td>three</td></tr>
+		</table>
+	</div>
+	
+</div>

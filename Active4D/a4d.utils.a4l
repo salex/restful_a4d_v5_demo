@@ -1,0 +1,1165 @@
+/*
+	Active4D private -- DO NOT EDIT!
+	
+	Copyright (c) 2003-2009 Aparajita Fishman, All Rights Reserved
+*/
+
+library "a4d.utils"
+
+
+// Constants for use with truncateText
+define(kTruncateText_Start; 1)
+define(kTruncateText_Middle; 2)
+define(kTruncateText_End; 3)
+
+
+// Constant used to mark the end of a serialized collection
+define(kCollectionDataEnd; "\r>>>\n")
+
+
+/*
+	PUBLIC METHODS
+*/
+
+
+/**********************************************************************************
+	unlockAndLoad
+	
+	$inTable		->	Table pointer	Table to load record from
+	$inRecNum		->	Number			Record number of record to unlock, 
+										-1 to use current record
+	$inTimeoutURL	->	Text			URL of page to redirect to if we timeout 
+										waiting for lock
+	$inTimeout		->	Number			Seconds to wait before timing out
+	RESULT			<-	Boolean			True if record successfully unlocked
+	
+	When you want load an unlocked record for modification, use this method.
+	It takes care of the messy business of waiting for a record to be unlocked.
+	If the record is locked when requested, this method will wait a maximum
+	of 2 seconds before giving up and returning false.
+**********************************************************************************/
+
+method "unlockAndLoad"($inTable; $inRecNum = -1; $inTimeoutURL = ""; $inTimeout = 2)
+	
+    if (not(execute in 4d("in transaction"; *)))
+        if ($inRecNum = -1)
+            $inRecNum := record number($inTable->)
+        end if
+
+        goto record($inTable->; $inRecNum)
+    end if
+
+    c_boolean($timedOut; $readOnlyState)
+    $timedOut := false
+    $readOnlyState := read only state($inTable->)
+    unload record($inTable->)
+    read write($inTable->)
+    load record($inTable->)
+
+	c_longint($ticks)
+	$ticks := tickcount
+	
+	// Wait a maximum of $inTimeout seconds for the record to be unlocked
+	while (locked($inTable->))
+		load record($inTable->)
+		delay process(current process; 10)
+		
+		if ((tickcount - $ticks) > ($inTimeout * 60))
+			break
+		end if
+	end while
+	
+	if (locked($inTable->))
+		// We timed out
+		$timedOut := true
+		
+		if ($readOnlyState)
+			read only($inTable->)
+		else
+			read write($inTable->)
+		end if
+		
+		if ($inTimeoutURL)
+			redirect($inTimeoutURL)
+		end if
+	end if
+	
+	return (not($timedOut))
+	
+end method
+
+
+
+/**********************************************************************************
+	deleteSelection
+	
+	$inTable		->	Table pointer	Table to delete records from
+	$inTimeoutURL	->	Text			URL of page to redirect to if we timeout 
+										waiting for locks
+	$inTimeout		->	Number			Seconds to wait before timing out
+	RESULT			<-	Boolean			True if selection successfully deleted
+**********************************************************************************/
+
+method "deleteSelection"($inTable; $inTimeoutURL = ""; $inTimeout = 2)
+	
+	return (_doSelectionOp($inTable; ""; $inTimeoutURL; $inTimeout))
+	
+end method
+
+
+
+/**********************************************************************************
+	applyToSelection
+	
+	$inTable		->	Table pointer	Table to apply to
+	$inStatement	->	Text			Code to execute for each record in selection
+	$inTimeoutURL	->	Text			URL of page to redirect to if we timeout 
+										waiting for locks
+	$inTimeout		->	Number			Seconds to wait before timing out
+	RESULT			<-	Boolean			True if selection successfully deleted
+**********************************************************************************/
+
+method "applyToSelection"($inTable; $inStatement; $inTimeoutURL = ""; $inTimeout = 2)
+
+	if (length($inStatement) = 0)
+		return (true)
+	end if
+	
+	$inStatement := "apply to selection([{0}]; {1})" %% (table name($inTable); $inStatement)
+	return (_doSelectionOp($inTable; $inStatement; $inTimeoutURL; $inTimeout))
+	
+end method
+
+
+
+/**********************************************************************************
+	_doSelectionOp
+	
+	Helper method for deleteSelection and applyToSelection
+	
+	$inTable		->	Table pointer	Table to apply to
+	$inStatement	->	Text			Code to execute for 'apply to selection'
+	$inTimeoutURL	->	Text			URL of page to redirect to if we timeout 
+										waiting for locks
+	$inTimeout		->	Number			Seconds to wait before timing out
+	RESULT			<-	Boolean			True if selection successfully deleted
+**********************************************************************************/
+
+method "_doSelectionOp"($inTable; $inStatement; $inTimeoutURL; $inTimeout)
+	
+	if (records in selection($inTable->) = 0)
+		return (true)
+	end if
+	
+	c_boolean($timedOut; $readOnlyState)
+	$timedOut := false
+	$readOnlyState := read only state($inTable->)
+	read write($inTable->)
+	c_longint($ticks)
+	$ticks := tickcount
+	
+	// Wait a maximum of $inTimeout seconds for all records to be processed
+	repeat
+		if (length($inStatement) = 0)
+			delete selection($inTable->)
+		else
+			execute in 4d($inStatement)
+		end if
+		
+		if (records in set("LockedSet"))
+			delay process(current process; 10)
+			
+			if ((tickcount - $ticks) > ($inTimeout * 60))
+				break
+			end if
+			
+			use set("LockedSet")
+		end if
+	until (records in set("LockedSet") = 0)
+	
+	if ($readOnlyState)
+		read only($inTable->)
+	else
+		read write($inTable->)
+	end if
+	
+	if (records in set("LockedSet"))
+		// We timed out
+		$timedOut := true
+		
+		if ($inTimeoutURL)
+			redirect($inTimeoutURL)
+		end if
+	end if
+	
+	return (not($timedOut))
+	
+end method
+
+
+
+/**********************************************************************************
+	nextID
+	
+	$inIdField			->	Field pointer	Field which contains IDs
+	$inKeepSelection	->	Boolean			True to keep the current selection/record
+	RESULT				<-	Number			The next highest ID
+	
+	Given a field which contains a numeric or text ID, returns the number
+	which is one higher than the maximum value in that field.
+	
+	If $inKeepSelection is true, the current selection/record will be maintained.
+	Otherwise it will be lost.
+**********************************************************************************/
+
+method "nextID"($inIdField; $inKeepSelection = false)
+	
+	while (semaphore("a4d.utils.nextID"))
+		// wait
+	end while
+	
+	if ($inKeepSelection)
+		cut named selection("a4d.utils.nextID")
+	end if
+	
+	$table := table(table($inIdField))
+	all records($table->)
+	order by($table->; $inIdField->)
+	last record($table->)
+	
+	if (type($inIdField->) = 9)  // Is Longint
+		$id := $inIdField-> + 1
+	else
+		$id := num($inIdField->) + 1
+	end if
+	
+	if ($inKeepSelection)
+		use named selection("a4d.utils.nextID")
+		clear named selection("a4d.utils.nextID")
+	end if
+	
+	clear semaphore("a4d.utils.nextID")
+	return ($id)	
+	
+end method
+
+
+
+/**********************************************************************************
+	cud
+	
+	$cudAction			->	Field pointer	Action to perform (create|update|update*|delete)
+	$cudTable			->	Table pointer	Table which is being operated on
+	$cudProcessor		->	Text			Table-specific processing code
+	$attributes			->	Collection		Collection of attributes to pass to processor
+	$cudTimestampField	->	Field pointer	Field which contains a timestamp
+	$cudTimestamp		->	String			Current timestamp of record being updated
+	RESULT				<-	String			Result of action (success|locked|missing|conflict|<error>)
+	
+	This method is a generalized processor for creates, updates and deletes
+	of a single record. For more information, please see the documentation.
+**********************************************************************************/
+
+method "cud"($cudAction; $cudTable; $cudProcessor; $attributes = 0; $cudTimestampField = nil pointer; $cudTimestamp = "")
+	$cudResult := "success"
+	$cudState := read only state($cudTable->)
+	$cudInclude := $cudProcessor[[1]] = "/"
+	$cudPhase := "query"
+	
+	if ($cudAction # "create")
+		if ($cudInclude)
+			include($cudProcessor)
+		else
+			$cudResult := call method($cudProcessor; $cudAction; $cudPhase; $cudTable; $cudResult; $attributes; $cudTimestampField; $cudTimestamp)
+		end if
+	
+		if ($cudResult = "success")
+			$recs := records in selection($cudTable->)
+	
+			case of
+				:($recs = 0)
+					if ($cudAction = "update*")
+						$cudAction := "create"
+					else
+						$cudResult := "missing"
+					end if
+			
+				:($recs # 1)
+					$cudResult := "missing"
+			end case
+		end if
+	end if
+	
+	if ($cudResult = "success")
+		if ($cudAction = "create")
+			// phase is still "query"
+			if ($cudInclude)
+				include($cudProcessor)
+			else
+				$cudResult := call method($cudProcessor; $cudAction; $cudPhase; $cudTable; $cudResult; $attributes; $cudTimestampField; $cudTimestamp)
+			end if
+
+			if ($cudResult = "success")
+				read write($cudTable->)
+				create record($cudTable->)
+			end if
+		else
+			if (a4d.utils.unlockAndLoad($cudTable))
+				if (not(nil($cudTimestampField)) & ($cudTimestamp # ""))
+					if ($cudTimestampField-> # $cudTimestamp)
+						$cudResult := "conflict"
+					end if
+				end if
+			else
+				$cudResult := "locked"
+			end if
+		end if
+		
+		if ($cudResult = "success")
+			$cudPhase := choose($cudAction = "delete"; "delete"; "update")
+		
+			if ($cudInclude)
+				include($cudProcessor)
+			else
+				$cudResult := call method($cudProcessor; $cudAction; $cudPhase; $cudTable; $cudResult; $attributes; $cudTimestampField; $cudTimestamp)
+			end if
+		end if
+		
+		if ($cudResult = "success")
+			if ($cudAction = "delete")
+				delete record($cudTable->)
+			else
+				save record($cudTable->)
+			end if
+
+			$cudPhase := "post"
+		
+			if ($cudInclude)
+				include($cudProcessor)
+			else
+				$cudResult := call method($cudProcessor; $cudAction; $cudPhase; $cudTable; $cudResult; $attributes; $cudTimestampField; $cudTimestamp)
+			end if
+		end if
+	end if  // $cudResult = "success"
+	
+	unload record($cudTable->)
+	
+	if ($cudState)
+		read only($cudTable->)
+	end if
+
+	$cudPhase := "cleanup"
+	$cudResult_ := $cudResult
+
+	if ($cudInclude)
+		include($cudProcessor)
+	else
+		call method($cudProcessor; $cudAction; $cudPhase; $cudTable; $cudResult; $attributes; $cudTimestampField; $cudTimestamp)
+	end if
+	
+	return ($cudResult_)
+	
+end method
+
+
+
+/**********************************************************************************
+	getPictureDescriptor
+	
+	$inPicture		->	Picture		Picture to get info for
+	
+	Returns a descriptive string with the width, height and size of the picture
+**********************************************************************************/
+
+method "getPictureDescriptor"(&$inPicture)
+	
+	picture properties($inPicture; $width; $height)
+	return ('Width: $width, Height: $height, Size: `picture size($inPicture)`')
+	
+end method
+
+
+
+/**********************************************************************************
+	getPointerReferent
+	
+	$inPointer		->	Pointer		Pointer to get referent of
+	
+	Returns a string which identifies the entity to which $inPointer refers
+**********************************************************************************/
+
+method "getPointerReferent"($inPointer)
+	
+	return (string($inPointer))
+	
+end method
+
+
+
+/**********************************************************************************
+	validPrice
+	
+	$inPrice			->	Number/Text		Price to check for validity
+	$inCurrencyMark		->	String			The currency mark, defaults to "$"
+	$inDecimalSep		->	String			The decimal separator, defaults to "."
+	RESULT				<-	Boolean			True if valid price string
+	
+	Validates that $inPrice is an optional currency mark followed by an optional
+	space, followed by zero or more numbers, followed by a decimal separator,
+	followed by 2 numbers.
+**********************************************************************************/
+
+method "validPrice"($inPrice; $inCurrencyMark = "$"; $inDecimalSep = ".")
+	
+	$inDecimalSep := $inDecimalSep[[1]]
+	$pattern := "/^(" + regex quote pattern($inCurrencyMark) + "?[ ]?)?\\d*" + regex quote pattern($inDecimalSep) + "\\d\\d$/"
+	
+	if ((type($inPrice) = Is Real) | (type($inPrice) = Is Longint))
+		$inPrice := string($inPrice; "###########.00")
+		$inPrice[[-3]] := $inDecimalSep
+	else
+		$inPrice := trim($inPrice)
+	end if
+	
+	return ($inPrice =~ $pattern)
+	
+end method
+
+
+
+/**********************************************************************************
+	yearMonthDay
+	
+	$inShortYear	->	Boolean		True to return a two-digit year
+	$inDate			->	Date		Date to format
+	
+	Returns $inDate in the form YYYYMMDD or YYMMDD, depending on $inShortYear.
+**********************************************************************************/
+
+method "yearMonthDay"($inShortYear = false; $inDate = !00/00/00!)
+	
+	if (not($inDate))
+		$inDate := current date(*)
+	end if
+	
+	c_longint($year; $century)
+	$year := year of($inDate)
+	
+	if ($inShortYear)
+		$year %= 100
+	end if
+	
+	return (string($year; choose($inShortYear; "00"; "0000")) + string(month of($inDate); "00") + string(day of($inDate); "00"))
+	
+end method
+
+
+
+/**********************************************************************************
+	articleFor
+	
+	$inNoun		->	String		A noun for which to generate an article.
+	$inVowelH	->	Boolean		If true, "h" is considered a vowel sound
+	
+	Returns either "a" or "an", depending on whether the first letter 
+	of $inNoun is a vowel.
+**********************************************************************************/
+
+method "articleFor"($inNoun; $inVowelH = false)
+	
+	$vowels := "aeiou"
+	
+	if ($inVowelH)
+		$vowels += "h"
+	end if
+	
+	if ($inNoun[[1]] ~ $vowels)
+		return ("an")
+	else
+		return ("a")
+	end if
+	
+end method
+
+
+
+/**********************************************************************************
+	setMailMethod
+	
+	$inMethod	->	String		4D method to call to send mail
+**********************************************************************************/
+
+method "setMailMethod"($inMethod)
+	
+	self{"mailMethod"} := $inMethod
+	
+end method
+
+
+
+/**********************************************************************************
+	setSMTPHost
+	
+	$inHost	->	String		SMTP host to use with sendMail
+**********************************************************************************/
+
+method "setSMTPHost"($inHost)
+	
+	self{"SMTPHost"} := $inHost
+	
+end method
+
+
+
+/**********************************************************************************
+	setSMTPAuthorization
+	
+	$inUsername	->	String		SMTP account username to use with sendMail
+	$inPassword	->	String		SMTP account password to use with sendMail
+**********************************************************************************/
+
+method "setSMTPAuthorization"($inUsername; $inPassword)
+	
+	self{"SMTPAuthUser"} := $inUsername
+	self{"SMTPAuthPassword"} := $inPassword
+	
+end method
+
+
+
+/**********************************************************************************
+	getMailMethod
+	
+	RESULT	<-	String		Current 4D method to use with sendMail
+**********************************************************************************/
+
+method "getMailMethod"
+	
+	return (self{"mailMethod"})
+	
+end method
+
+
+
+/**********************************************************************************
+	getSMTPHost
+	
+	RESULT	<-	String		Current SMTP host to use with sendMail
+**********************************************************************************/
+
+method "getSMTPHost"
+	
+	return (self{"SMTPHost"})
+	
+end method
+
+
+
+/**********************************************************************************
+	getSMTPAuthUser
+	
+	RESULT	->	String		Current SMTP account username to use with sendMail
+**********************************************************************************/
+
+method "getSMTPAuthUser"
+	
+	return (self{"SMTPAuthUser"})
+	
+end method
+
+
+
+/**********************************************************************************
+	getSMTPAuthPassword
+	
+	RESULT	->	String		Current SMTP account password to use with sendMail
+**********************************************************************************/
+
+method "getSMTPAuthPassword"
+	
+	return (self{"SMTPAuthPassword"})
+	
+end method
+
+
+
+/**********************************************************************************
+	getSMTPAuthorization
+	
+	outUsername	<-	String		Current SMTP account username to use with sendMail
+	outPassword	<-	String		Current SMTP account password to use with sendMail
+**********************************************************************************/
+
+method "getSMTPAuthorization"(&$outUsername; &$outPassword)
+	
+	$outUsername := self{"SMTPAuthUser"}
+	$outPassword := self{"SMTPAuthPassword"}
+	
+end method
+
+
+
+/**********************************************************************************
+	sendMail
+	
+	$inMailFileOrText	->	Text		Path to a file, relative to the file which 
+										called this method, which contains the mail 
+										message text, or text to execute if it 
+										begins with "!", or text to pass through
+										if it begins with "|". If executing, whatever is 
+										sent to the response buffer ends up as the
+										body of the message.
+	$inFrom				->	String		From address
+	$inTo				-> 	String		To addresses
+	$inCc				->	Text		Cc addresses
+	$inBcc				->	Text		Bcc addresses
+	$inAttachmentPath	->	String		URL path to attachment
+	$inUserData			-> 	Collection	Data to make available to the included file
+	$inHeaders			-> 	Text		Extra headers to add to the message
+	RESULT				<-	Number		Error code, 0 means success
+	
+	Dynamically includes the given file or executes the given text, taking the 
+	first line as the subject of the message, then sends it by calling the 4D 
+	method A4D_SendMail. A4D_SendMail requires the 4D Internet Commands plugin.
+	
+	If inHeaders is passed, it should be a linefeed-delimited list of 
+	header:value pairs.
+	
+	IMPORTANT: Before using this command you must call SetSMTPHost, and 
+	SetSMTPAuthorization if the SMTP host requires account authorization. 
+	Also, the subject MUST be separated from the body by a linefeed ("\n").
+	
+	Example of using an include file:
+	a4d.utils.sendMail("email/user_notify.inc"; "sales@acme.com"; [Users]Email)
+	
+	Example of using direct text:
+	$subject := "Order #" + [Orders]OrderNum
+	$text := '|$subject\nDear [Users]Name,\n\nYour order...'
+	a4d.utils.sendMail($text; ; "sales@acme.com"; [Users]Email)
+**********************************************************************************/
+
+method "sendMail" ($inMailFileOrText; $inFrom; $inTo; $inCc = ""; $inBcc = ""; $inAttachmentPath = ""; $inUserData = 0; $inHeaders = "")
+	
+	c_text($_message; $_subject; $_host)
+	$_host := getSMTPHost
+	
+	if (not($_host))
+		return (-1)
+	end if
+	
+	case of
+		:($inMailFileOrText[[1]] = "!")
+			save output($_message)
+			execute(substring($inMailFileOrText; 2))
+			end save output
+			
+		:($inMailFileOrText[[1]] = "|")
+			$_message := substring($inMailFileOrText; 2)
+	else
+		include into($inMailFileOrText; $_message)
+	end case
+	
+	c_longint($_pos)
+	$_pos := position("\n"; $_message)
+	
+	if ($_pos > 0)
+		$_subject := substring($_message; 1; $_pos - 1)
+		$_message := substring($_message; $_pos + 1)
+	else
+		$_subject := ""
+	end if
+	
+	return (call 4d method(getMailMethod; getSMTPHost; $inFrom; $inTo; $_subject; $_message; $inCc; $inBcc; url to native path($inAttachmentPath); getSMTPAuthUser; getSMTPAuthPassword; $inHeaders))
+	
+end method
+
+
+
+/**********************************************************************************
+	truncateText(inText, inWidth; inTruncateMode) -> Text
+	
+	$inText			->	Text		Text to truncate.
+	$inWidth		->	Longint		Width to truncate to, not including ellipsis
+	$inTruncateMode	-> 	Longint		One of the library kTruncateText constants
+	RESULT			<-	Text		Truncated text
+	
+	Truncates $inText to the charater width indicated. inTruncateMode indicates 
+	where truncation occurs in inText.
+**********************************************************************************/
+
+method "truncateText"($inText; $inWidth; $inTruncateMode)
+	
+	$len := length($inText)
+	
+	if (($len <= $inWidth) | ($len <= 2) | ($inWidth <= 0))
+		return ($inText)
+	end if
+	
+	case of
+		:($inTruncateMode = kTruncateText_End)
+			return (substring($inText; 1; $inWidth) + "...")
+		
+		:($inTruncateMode = kTruncateText_Middle)
+			if ($len <= 3)	// We don't save any characters if inText < 3 chars
+				return ($inText)
+			else
+				c_longint($truncWidth; $startWidth; $endWidth)
+				$startWidth := $inWidth \ 2
+				$endWidth   := $inWidth - $startWidth
+				return (substring($inText; 1; $startWidth) + "..." + substring($inText; $len - $endWidth + 1))
+			end if
+	
+		:($inTruncateMode = kTruncateText_Start)
+			return ("..." + substring($inText; $len - $inWidth + 1))
+			
+	else
+		return ($inText)
+	end case
+		
+end method
+
+
+
+/**********************************************************************************
+	ordinalOf
+	
+	$inNumber		->	Number		Number for which to get the ordinal
+	RESULT			<-	Text		Number + ordinal suffix
+	
+	Finds the correct ordinal suffix for a number ("st" | "nd" | "rd" | "th")
+	and returns the number with the ordinal suffix.
+**********************************************************************************/
+
+method "ordinalOf"($inNumber)
+	
+	// Don't care about decimal digits beyond the second
+	$number := int($inNumber) % 100
+	
+	// The teens always use "th"
+	if (($number >= 4) & ($number <= 19))
+		return (string($inNumber) + "th")
+	else
+		// Only care about last decimal digit to get ordinal
+		$digit := $inNumber % 10
+		return (string($inNumber) + substring("th/st/nd/rd/th/th/th/th/th/th"; ($digit * 3) + 1; 2))
+	end if
+	
+end method
+
+
+
+/**********************************************************************************
+	reverseArray
+	
+	$ioArray	<->	Array		Array to reverse.
+	
+	Reverses the elements of $ioArray in place.
+**********************************************************************************/
+
+method "reverseArray"(&$ioArray)
+
+	c_longint($first; $last)
+	$first := 1
+	$last  := size of array($ioArray)
+
+	if ($first # $last)
+		while ($first < $last)
+			$tmp := $ioArray{$last}
+			$ioArray{$last} := $ioArray{$first}
+			$ioArray{$first} := $tmp
+			++$first
+			--$last
+		end while
+	end if
+	
+end method
+
+
+
+/**********************************************************************************
+	formatUSPhone(inPhone)
+	
+	$inPhone	->	Text		Telephone number
+	$inFormat	->	String		Format string to use when formatting phone number
+	
+	Formats a US phone number in (000) 000-0000 or 000-000-0000 format
+**********************************************************************************/
+
+method "formatUSPhone"($inPhone; $inFormat = "(%s) %s-%s")
+	
+	if (not($inPhone))
+		return ("")
+	end if
+	
+	// Strip out any existing formatting and spaces
+	c_text($phone)
+	regex replace("/[^0-9]/"; $inPhone; ""; $phone)
+	
+	// Strip off the country code if present
+	if ((length($phone) = 11) & ($phone[[1]] = "1"))
+		$phone := substring($phone; 2)
+	end if
+	
+	if (length($phone) = 10)
+		return ($inFormat % (substring($phone; 1; 3); substring($phone; 4; 3); substring($phone; 7)))
+	else
+		return ($inPhone)
+	end if
+	
+end method
+
+
+
+/***********************************************************************************
+	filterCollection
+	
+	$inCollection	->	Collection | Iterator
+	$inFilter		->	Text		Text to match against.
+									Collection items whose keys match this are filtered. 
+									If the first character is '+', it is an inclusion filter, 
+									if '-' an exclusion filter. Neither defaults to inclusion.
+									If the first and last character of the filter (after
+									a +/-) is /, a regular expression match is done.
+	$inGlobal		->	Boolean		True to create a global collection
+	RESULT			<-	Collection	Filtered collection
+	
+	Creates a new collection from items in another collection.
+***********************************************************************************/
+
+method "filterCollection"($inCollection; $inFilter; $inGlobal = false)
+	
+	if (not(is an iterator($inCollection)))
+		$inCollection := collection($inCollection)
+	end if
+	
+	c_text($key)
+	
+	if (not($inFilter))
+		if ($inGlobal)
+			return (copy collection($inCollection; *))
+		else
+			return (copy collection($inCollection))
+		end if
+	else
+		c_boolean($exclude; $use)
+		
+		case of
+			:($inFilter[[1]] = "+")
+				$exclude := false
+				$inFilter := substring($inFilter; 2)
+				
+			:($inFilter[[1]] = "-")
+				$exclude := true
+				$inFilter := substring($inFilter; 2)
+				
+		else
+			$exclude := false
+		end case
+		
+		$regex := $inFilter[[1]] = "/"
+		
+		if ($inGlobal)
+			$out := new global collection
+		else
+			$out := new collection
+		end if
+		
+		while (more items($inCollection))
+			$key := get item key($inCollection)
+			
+			if ($regex)
+				if ($exclude)
+					$use := ($key #~ $inFilter)
+				else
+					$use := ($key =~ $inFilter)
+				end if
+			else
+				if ($exclude)
+					$use := ($key # $inFilter)
+				else
+					$use := ($key = $inFilter)
+				end if
+			end if
+			
+			if ($use)
+				$out{$key} := $inCollection{$key}
+			end if
+			
+			next item($inCollection)
+		end while
+		
+		return ($out)
+	end if
+	
+end method
+
+
+
+/***********************************************************************************
+	camelCaseText
+	
+	$inText			->	Text	Text to camel case
+	$inExceptions	->	Text	Words to ignore (space-separated)
+	RESULT			<-	Text	Camel-cased text
+	
+	Capitalizes the first letter and lowercases all other letters of all words 
+	in $inText that are not in the exceptions list.
+***********************************************************************************/
+
+method "camelCaseText"($inText; $inExceptions = "")
+	
+	$pattern := "/(\W*)(\w[\w\-']*)/e"
+	$exceptions := "a|at|on|in|by"
+	
+	if ($inExceptions)
+		$exceptions := replace string(trim($inExceptions); " "; "|")
+	end if
+	
+	$replace := "return (\"\1\" + choose(\"\2\" =~ \"/^(?:" + $exceptions + ")$/i\"; lowercase(\"\2\"); uppercase(substring(\"\2\"; 1; 1)) + lowercase(substring(\"\2\"; 2))))"
+	regex replace($pattern; $inText; $replace; $result)
+	return ($result)
+	
+end method
+
+
+
+/***********************************************************************************
+	chopText
+	
+	$inText	->	Text to chop into 80-character chunks
+	RESULT	<-	Chopped text
+	
+	Chops text into chunks concatenated with "+", suitable for passing
+	to 'execute in 4d'.
+***********************************************************************************/
+
+method "chopText"($inText)
+
+	$result := ""
+
+	while (length($inText) > 80)
+		$result += substring($inText; 1; 80) + "\"+\""
+		$inText := substring($inText; 81)
+	end while
+
+	return ($result + $inText)
+	
+end method
+
+
+
+/***********************************************************************************
+	collectionToBlob
+	
+	$inCollection	->	Collection	Collection to serialize
+	$ioBlob			<->	BLOB		Receives the serialized collection	
+	
+	Recursively serializes $inCollection and any embedded collections to $ioBlob.
+***********************************************************************************/
+
+method "collectionToBlob"($inCollection; &$ioBlob)
+	
+	_collectionToBlob($inCollection; $ioBlob; ""; 1)
+	
+end method
+
+
+
+/***********************************************************************************
+	sessionToBlob
+	
+	$ioBlob	<->	BLOB	Receives the serialized session	
+	
+	Recursively serializes the current session and any embedded collections
+	to $ioBlob.
+***********************************************************************************/
+
+method "sessionToBlob"(&$ioBlob)
+	
+	_collectionToBlob(session; $ioBlob; ""; 1)
+	
+end method
+
+
+
+/***********************************************************************************
+	_collectionToBlob
+	
+	$inCollection	->	Collection	Collection to serialize
+	$ioBlob			<->	BLOB		Receives the serialized collection	
+	$inName			->	Text		The item name for the collection within its parent
+	$inLevel		->	Number		Recursion level
+	
+	Private helper for _collectionToBlob, should not be called directly. 
+***********************************************************************************/
+
+method "_collectionToBlob"($inCollection; &$ioBlob; $inName; $inLevel)
+	
+	longint to blob($inLevel; $ioBlob; intel byte ordering; *)
+	text to blob($inName; $ioBlob; utf8 text with length; *)
+	collection to blob($inCollection; $ioBlob)
+	
+	for each($inCollection; $key)
+		$type := type($inCollection{$key})
+		
+		case of
+			:($type = is longint) | ($type = is real)
+				$value := $inCollection{$key}
+				
+				if (is a collection($value))
+					_collectionToBlob($value; $ioBlob; $key; $inLevel + 1)
+				end if
+				
+			:($type = longint array) | ($type = real array)
+				for ($i; 0; size of array($inCollection{$key}))
+					if (is a collection($inCollection{$key}{$i}))
+						_collectionToBlob($inCollection{$key}{$i}; $ioBlob; '\t$key\t$i'; $inLevel + 1)
+					end if
+				end for
+		end case
+	end for each			
+	
+	// Write the decremented level, which marks the end of this collection.
+	longint to blob($inLevel - 1; $ioBlob; intel byte ordering; *)
+	
+end method
+
+
+
+/***********************************************************************************
+	blobToCollection
+	
+	$inBlob		->	Contains the serialized collection
+	$ioOffset	<->	Offset within $inBlob to get serialized data	
+	$inGlobal	->	True to return a global collection, false to return a local
+	RESULT		<-	New collection
+	
+	Recursively deserializes a collection serialized with collectionToBlob().
+***********************************************************************************/
+
+method "blobToCollection"($inBlob; &$ioOffset; $inGlobal)
+	
+	// First is the recursion level, which starts at 1
+	$level := blob to longint($inBlob; intel byte ordering; $ioOffset)
+	
+	if ($level # 1)
+		return (0)
+	end if
+	
+	// Next is an empty name
+	$key := blob to text($inBlob; utf8 text with length; $ioOffset)
+	
+	if ($inGlobal)
+		$col := blob to collection($inBlob; $ioOffset; *)
+	else
+		$col := blob to collection($inBlob; $ioOffset)
+	end if
+	
+	_blobToCollection($inBlob; $ioOffset; $inGlobal; $col; 1)
+	return ($col)
+	
+end method
+
+
+
+/***********************************************************************************
+	blobToSession
+	
+	$inBlob		->	Contains the serialized collection
+	$ioOffset	<->	Offset within $inBlob to get serialized data	
+	
+	Recursively deserializes a session serialized with sessionToBlob().
+***********************************************************************************/
+
+method "blobToSession"($inBlob; &$ioOffset)
+	
+	// First is the recursion level, which starts at 1
+	$level := blob to longint($inBlob; intel byte ordering; $ioOffset)
+	
+	if ($level # 1)
+		return (0)
+	end if
+	
+	// Next is an empty name
+	$key := blob to text($inBlob; utf8 text with length; $ioOffset)
+	
+	// Then the session data
+	blob to session($inBlob; $ioOffset)
+	
+	// Because a session is persistent, embedded collections must be global
+	_blobToCollection($inBlob; $ioOffset; true; session; 1)
+	
+end method
+
+
+
+/***********************************************************************************
+	_blobToCollection
+	
+	$inBlob		->	Contains the serialized collection
+	$ioOffset	<->	Offset within $inBlob to get serialized data	
+	$inGlobal	->	True to return a global collection, false to return a local
+	$inParent	->	Parent collection in which to store the deserialized collection
+	$inLevel	->	Recursion level
+	
+	Private helper for blobToCollection, do not call directly.
+***********************************************************************************/
+
+method "_blobToCollection"($inBlob; &$ioOffset; $inGlobal; $inParent; $inLevel)
+	
+	while (true)
+		// First is the level of the item
+		$level := blob to longint($inBlob; intel byte ordering; $ioOffset)
+		
+		// A lower level means the end of this level
+		if ($level < $inLevel)
+			return
+		end if
+	
+		// Next is the name of the item within the parent
+		$key := blob to text($inBlob; utf8 text with length; $ioOffset)
+		
+		// Then the collection data
+		if ($inGlobal)
+			$col := blob to collection($inBlob; $ioOffset; *)
+		else
+			$col := blob to collection($inBlob; $ioOffset)
+		end if
+
+		// If the first character of the key is \t, it is an array element
+		if ($key[[1]] = "\t")
+			$key := slice string(substring($key; 2); "\t"; $index)
+			$inParent{$key}{num($index)} := $col
+		else
+			$inParent{$key} := $col
+		end if
+
+		if ($level > $inLevel)
+			// Recurse downward
+			_blobToCollection($inBlob; $ioOffset; $inGlobal; $col; $level)
+		end if
+	end while
+	
+end method
+
+
+
+/*
+	PRIVATE METHODS
+*/
+
+
+/**********************************************************************************
+	__load__
+**********************************************************************************/
+
+method "__load__"
+	
+	// Set some defaults
+	
+	setMailMethod("A4D_SendMail")
+	
+end method
+
+
+end library

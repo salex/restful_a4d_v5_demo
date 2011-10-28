@@ -1,0 +1,11 @@
+<% /*
+<fusedoc fuse="fbx_settings.a4d" language="Active4D" specification="2.0">
+	<responsibilities>
+		I set up the enviroment settings for the checker circuit.
+	</responsibilities>
+</fusedoc>
+*/
+
+fusebox.head.addCSS($fusebox; "/css/checker.css")
+fusebox.head.addJS($fusebox; "/js/cookies.js")
+%>

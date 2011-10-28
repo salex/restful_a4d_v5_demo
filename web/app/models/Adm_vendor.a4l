@@ -1,0 +1,113 @@
+
+library "Adm_vendor"
+
+method "cudAdm_vendor"($cudAction; $cudPhase; $cudTable; $cudResult; $params; $cudTimestampField; $cudTimestamp)
+	case of 
+		:($cudPhase = "query")
+			unload record([vendors])
+			if ($cudAction # "create")
+					query([vendors]; [vendors]id = num($params{"Adm_vendor.id"}))
+			end if
+		:($cudPhase = "update") 
+			rest.buildFromParams("vendors";$params)
+		:($cudPhase = "post") 
+			_request{"new_id"} := [vendors]id
+		:($cudPhase = "delete") 
+		:($cudPhase = "cleanup") 
+	end case
+	return ("success") 
+end method 
+
+method "create"($attributes)
+	start transaction
+	$cudAction := "create"
+	$params := a4d.utils.filtercollection($attributes;"Adm_vendor.@")
+	$result := a4d.utils.cud($cudAction; ->[vendors]; "cudAdm_vendor"; $params)
+	if ($result # "success")
+		cancel transaction
+		return($result)
+	end if
+	
+	validate transaction
+	return($result)
+end method
+
+method "update"($attributes)
+	start transaction
+	$cudAction := "update"
+	$params := a4d.utils.filtercollection($attributes;"Adm_vendor.@")
+	$params{"Adm_vendor.id"} := $attributes{"id"} // id is in rest path
+	$result := a4d.utils.cud($cudAction; ->[vendors]; "cudAdm_vendor"; $params)
+	if ($result # "success")
+		cancel transaction
+		return($result)
+	end if
+	
+	validate transaction
+	return($result)
+	
+end method
+
+method "delete"($attributes)
+	start transaction
+	$params := a4d.utils.filtercollection($attributes;"Adm_vendor.@")
+	$cudAction := "delete"
+	$params{"Adm_vendor.id"} := $attributes{"id"} // id is in rest path
+	$result := a4d.utils.cud($cudAction; ->[vendors]; "cudAdm_vendor"; $params)
+	if ($result # "success")
+		cancel transaction
+		return("Failed in Adm_vendor: "$result)
+	end if
+	
+	
+	
+	
+	validate transaction
+	return($result)
+end method
+
+method "find_all"($attributes)
+	
+	all records([vendors])
+	
+	$callback := """
+	
+	"""
+	$include_map := ""
+	if ($attributes{"ftr"})
+		_filter($attributes)
+	end if
+	if ($attributes{"bst"})
+		$attributes{"pbst"} := $attributes{"bst"}
+	else
+		if ($attributes{"pbst"})
+			$attributes{"bst"} := $attributes{"pbst"}
+		end if
+	end if
+	order by([vendors];[vendors]name;>)
+	return(rest.build_rowset("Adm_vendor";$attributes;new collection("include_map";$include_map;"callback" ;$callback)))
+end method
+
+method "find"($attributes)
+	return(rest.find("Adm_vendor";$attributes{"id"}))
+end method
+
+method "find_related"($relModel;$attributes;$parent=0)
+	return(rest.find_related("Adm_vendor";$relModel;$attributes;$parent))
+end method
+
+method "new"($attributes)
+	return(rest.new("Adm_vendor"))
+end method
+
+method "_filter"($attributes)
+		
+	if ($attributes{"ftr_name"}) 
+		query selection([Adm_vendors]; [Adm_vendors]name = $attributes{"ftr_name"}) 
+	end if
+			
+	
+end method
+
+end library
+

@@ -1,0 +1,45 @@
+<% /*
+<fusedoc fuse="dsp_hello.a4d" language="Active4D" specification="2.0">
+	<responsibilities>
+		I greet the user when he/she first visits the site.
+	</responsibilities>
+</fusedoc>
+*/ 
+
+fusebox.head.setTitle(fusebox.head.getTitle + " - Welcome")
+
+%>
+
+<h1>Screencast</h1>
+
+
+<div class="dpara"  >
+
+<script src="/js/AC_Quicktime.js" type="text/javascript" charset="utf-8"></script>
+	
+	
+	<h3>5-Minute Application from Scratch</h3>
+
+	<p>
+		Want to know how easy it is to use Restful Active4D? How about building the Active4D demo application from scratch 
+		 in less than 5 minutes?
+		Watch this screencast to find out how.
+	</p>
+	
+	<p>
+		<script type="text/javascript" charset="utf-8">
+			QT_WriteOBJECT_XHTML(
+				'iShowU4.mov', 
+				'910', 
+				'635', 
+				'',
+				'controller', 'true',
+				'target', 'myself',
+				'autoplay', 'false',
+				'bgcolor', 'ffffff'
+			);
+		</script>
+	</p>
+	
+
+</div>

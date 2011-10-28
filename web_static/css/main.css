@@ -1,0 +1,164 @@
+html,body,div,span,applet,object,iframe,h1,h2,h3,h4,h5,h6,p,blockquote,pre,a,abbr,acronym,address,big,cite,code,del,dfn,em,font,img,ins,kbd,q,s,samp,small,strike,strong,sub,sup,tt,var,dl,dt,dd,ol,ul,li,fieldset,form,label,legend,table,caption,tbody,tfoot,thead,tr,th,td{margin:0;padding:0;border:0;outline:0;font-weight:inherit;font-style:inherit;font-size:100%;font-family:inherit;vertical-align:baseline;}
+*:focus{outline:0;}
+body{line-height:1em;color:black;background:#bcd;font-size:.9em;}
+ol,ul{list-style:none;}
+/* tables still need 'cellspacing="0"' in the markup */
+table{border-collapse:separate;border-spacing:0;vertical-align:middle;}
+caption,th,td{text-align:left;font-weight:normal;vertical-align:middle;}
+q,blockquote{quotes:"" "";}
+q:before,q:after,blockquote:before,blockquote:after{content:"";}
+img a{border:none;}
+/* some defaults for demo about area */
+dl{margin-left:1em}
+dt{margin-left:2em;margin-bottom:4px;font-weight:bold;}
+dd{margin-left:3em;font-weight:normal;margin-bottom:4px;}
+.wiketable th,td{padding:0 2px;}
+code{padding:4px;background-color:#333;color:yellow;font-family:Verdana,Arial,Helvetica,sans-serif;font-size:9px;border:solid 1px yellow;}
+textarea.code{background-color:#333;color:yellow;font-family:Verdana,Arial,Helvetica,sans-serif;font-size:9px;}
+
+/* */
+#masthead{background:#eef;}
+#container{margin:10px auto;}
+#content-right{float:left;}
+#content-left{float:left;}
+#content h1,h3{font-size:1.2em;font-weight:bold;background:inherit;color:#036;border-bottom:2px solid #abc;margin:.5em 0;padding-bottom:1px;}
+#footer{font-size:.8em;}
+.col-1{width:30px;padding-right:10px;}
+.col-2{width:60px;padding-right:10px;}
+.col-3{width:90px;padding-right:10px;}
+.col-4{width:120px;padding-right:10px;}
+.col-5{width:150px;padding-right:10px;}
+.col-6{width:180px;padding-right:10px;}
+.col-7{width:210px;padding-right:10px;}
+.col-8{width:240px;padding-right:10px;}
+.col-9{width:270px;padding-right:10px;}
+.col-10{width:300px;padding-right:10px;}
+.col-11{width:330px;padding-right:10px;}
+.col-12{width:360px;padding-right:10px;}
+.col-13{width:390px;padding-right:10px;}
+.col-14{width:420px;padding-right:10px;}
+.col-15{width:450px;padding-right:10px;}
+.col-16{width:480px;padding-right:10px;}
+.col-17{width:510px;padding-right:10px;}
+.col-18{width:540px;padding-right:10px;}
+.col-19{width:570px;padding-right:10px;}
+.col-20{width:600px;padding-right:10px;}
+.col-21{width:630px;padding-right:10px;}
+.col-22{width:660px;padding-right:10px;}
+.col-23{width:690px;padding-right:10px;}
+.col-24{width:720px;padding-right:10px;}
+.col-25{width:750px;padding-right:10px;}
+.col-26{width:780px;padding-right:10px;}
+.col-27{width:810px;padding-right:10px;}
+.col-28{width:840px;padding-right:10px;}
+.col-29{width:870px;padding-right:10px;}
+.col-30{width:900px;padding-right:10px;}
+.col-31{width:930px;padding-right:10px;}
+.col-32{width:960px;padding-right:10px;}
+/* width adjustments */
+.w1{width:1em!important;}
+.w2{width:2em!important;}
+.w3{width:3em!important;}
+.w4{width:4em!important;}
+.w5{width:5em!important;}
+.w6{width:6em!important;}
+.w7{width:7em!important;}
+.w8{width:8em!important;}
+.w9{width:9em!important;}
+.w10{width:10em!important;}
+.w11{width:11em!important;}
+.w12{width:12em!important;}
+.w14{width:14em!important;}
+.w15{width:15em!important;}
+.w16{width:16em!important;}
+.w18{width:18em!important;}
+.w20{width:20em!important;}
+.w25{width:25em!important;}
+/* height adjustments */
+.h1{height:1em!important;}
+.h2{height:2em!important;}
+.h3{height:3em!important;}
+.h4{height:4em!important;}
+.h5{height:5em!important;}
+.h6{height:6em!important;}
+.h7{height:7em!important;}
+.h8{height:8em!important;}
+.h9{height:9em!important;}
+.h10{height:10em!important;}
+.h11{height:11em!important;}
+.h12{height:12em!important;}
+.h14{height:14em!important;}
+.h15{height:15em!important;}
+.h16{height:16em!important;}
+.h18{height:18em!important;}
+.h20{height:20em!important;}
+.h25{height:25em!important;}
+
+/* alignment adjustments */
+.left{text-align:left;}
+.right{text-align:right;}
+.center{text-align:center;}
+.dleft{float:left;}
+.dright{float:right;}
+.dclear{clear:both;}
+/* border adjustments */
+.dbt{border-top:dotted 1px #336699;}
+.dbb{border-bottom:dotted 1px #336699;}
+/* height adjustments */
+.minheight{min-height:500px;}
+/* basic classes */
+.box{margin-top:10px;padding:5px;background-color:#fff;-moz-border-radius:5px;-webkit-border-radius:5px;}
+.annotations{font-family:Verdana,Arial,Helvetica,sans-serif;font-size:9px;font-weight:normal;color:#0F426D;text-align:left;}
+.dlist ul{list-style:none;margin:1em 1.5em;padding:0;}
+.dlist ul li{background:url("../images/li-arrow.gif") 0 .4em no-repeat;margin:.5em 0 0 -.5em;padding:0 0 0 .75em;}
+.dlist a{color:green;font-weight:bold;margin:0;text-decoration:none}
+.dlist a:hover{color:#f00!important;}
+#content fieldset{border:1px solid;margin-right:auto;margin-left:auto;margin-top:4px;margin-bottom:4px;background:#abc;padding:4px;;-moz-border-radius:5px;-webkit-border-radius:5px;}
+#content fieldset legend{color:white;background-color:#369;font-size:1.1em;border:1px solid;border-color:#003366;margin-left:10px;padding:2px 4px;font-weight:bold;}
+.dform div{margin-top:2px;padding:0px;background:#f8f8f8;border-bottom:solid 2px #abc;}
+.dform div label{float:left;width:12em;padding:3px 6px 3px 3px;background:#fff;height:1.2em;text-align:right;font-weight:bold;border-right:solid 2px #abc;margin-right:4px}
+.dform div label.textarea{height:3em;}
+.dform div span.data{float:left;margin-left:2px;padding:3px;width:70%;text-align:left;border-bottom:1px dotted;border-color:#456;}
+.dform div span{margin-left:2px;padding:2px;text-align:left;border-bottom:1px dotted;border-color:#456}
+.dform div br{height:0;width:0;padding:0;margin:1px;clear:both;}
+.dform div.dactions{background-color:#8ac;padding:4px;border:1px solid;border-color:#336699;clear:both;}
+.dactions{background-color:#8ac;padding:4px;border:1px solid;border-color:#336699;clear:both;}
+.dactions strong{font-size:1.2em;font-family:arial,helvetica,sans-serif;font-weight:bold;}
+a.dlink-button{background:#d8e8ff;border:1px solid #467;color:#000000!important;font-size:.8em;font-weight:bold;margin:0;padding:1px 8px 1px 8px;text-decoration:none;-moz-border-radius:4px;-webkit-border-radius:4px;}
+a.dlink-button:hover{color:#f00!important;}
+#dsearch{border:solid 1px #369;padding:3px;background:#eef;margin-top:3px}
+.dtable table{border:solid 1px #036;width:100%;margin-top:-1px;}
+.dtable td{border-bottom:dotted 1px #85ACC9;padding:4px;}
+.dtable tr{background:#fff;}
+.dtable tr.alt{background:#f8f8f8;}
+.dtable .header{background:#bcd;padding:4px;}
+.dfilter{padding:4px;margin-top:2px;border:solid 1px #036;background:#f8f8f8;}
+.dpara p{margin:8px;}
+.dpara h4{font-size:1.2em;font-weight:bold;color:#036;margin:4px;}
+.indent{margin-left:1.5em;}
+tr.column-heads td,th{background:#bcd;border-bottom:1px solid #85ACC9;border-top:1px solid #85ACC9 ;color:#003366;font-weight:bold;}
+tr.column-heads td a{color:#003366;}
+.dnav{font-family:arial,helvetica,sans-serif;font-size:1.1em;background-color:#036;padding-left:20px;}
+.dnav div{margin:0;padding:4px 0;float:left;border-right:1px solid #fff;background-color:#036;}
+.dnav div a{padding:6px 1.2em;color:#fff;text-decoration:none;}
+.dnav div a:hover{background-color:#bcd;color:#036;}
+.dnav .set{background-color:#bcd;color:#036;}
+.dtab{width:100%;background-color:transparent!important;padding-top:2px;font-size:.9em;}
+.dtab ul{list-style-type:none;margin:0;padding-right:2px;}
+.dtab li{display:inline;float:left;margin-right:3px;text-align:center;border:solid 1px #036}
+.dtab a{float:left;width:10em;padding:3px 0;background:#d8e8ff;text-decoration:none;color:#036}
+.dtab a:hover{color:yellow!important}
+.dtab li.activelink{border:none;}
+.dtab li.activelink a{position:relative;padding:6px 0;background:#679;color:#fff}
+#new-batch{background:transparent;width:100%;}
+#new-batch .left{float:left;width:33%;}
+#new-batch .center{float:left;width:33%;text-align:center;}
+#new-batch .right{float:right;width:33%;text-align:right;}
+.calendar .today{font-weight:bold;color:#FF0000;}
+.calendar .holiday{color:#FF00EE;}
+.calendar table{padding:1px;border-collapse:collapse;border:0px;width:120px;}
+.calendar table caption{font-family:'Trebuchet MS',Verdana,sans-serif;font-size:xx-small;text-align:left;font-weight:800;background:transparent;text-transform:uppercase;padding:3px;letter-spacing:0.3em;color:green;}
+.calendar table th{text-align:center;background-color:#036;font-family:'Trebuchet MS',Verdana,sans-serif;font-size:xx-small;font-weight:normal;color:#ebb000;padding:0;margin:0;}
+.calendar table td{text-align:center;font-family:'Trebuchet MS',Verdana,sans-serif;font-size:xx-small;color:#295eff;color:#369;padding:0;margin:0;}
+.calendar table a{color:green;text-decoration:none;font-weight:bolder;}
+div.calendar{font-size:xx-small;float:right;margin-right:10px;}

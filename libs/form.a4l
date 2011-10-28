@@ -1,0 +1,146 @@
+/*
+	Form library
+	
+*/
+
+library "form"
+
+
+method "isNum"($data)
+	$x := type($data)
+end method
+
+
+method "html_options"($opt)
+	$result := ""
+	if ($opt{"rows"})
+		$result += ' rows="$opt{"rows"}"'
+	end if
+	if ($opt{"cols"})
+		$result += ' cols="$opt{"cols"}"'
+	end if
+	if ($opt{"id"})
+		$result += ' id="$opt{"id"}"'
+	end if
+	if ($opt{"size"})
+		$result += ' size="$opt{"size"}"'
+	end if
+	if ($opt{"class"})
+		$result += ' class="$opt{"class"}"'
+	end if
+	if ($opt{"checked"})
+		$result += ' checked="checked"'
+	end if
+	if ($opt{"selected"})
+		$result += ' selected="selected"'
+	end if
+	if ($opt{"disabled"})
+		$result += ' disabled="disabled"'
+	end if
+	if ($opt{"multiple"})
+		$result += ' multiple="multiple"'
+	end if
+	if ($opt{"disabled"})
+		$result += ' disabled="disabled"'
+	end if
+	if ($opt{"onchange"})
+		$result += ' onchange="$opt{"onchange"}"'
+	end if
+	if ($opt{"onclick"})
+		$result += ' onclick="$opt{"onclick"}"'
+	end if
+	if ($opt{"onblur"})
+		$result += ' onblur="$opt{"onblur"}"'
+	end if
+	return($result)
+end method
+
+method "text_field_tag"($name;$val;$opt=0)
+	$result := '<input type="text" name="$name" value="$val"'
+	regex replace("/[\\[\\].]/";$name;"_";$id)
+	if($opt)
+		$result += html_options($opt)
+	end if
+	if('id=' !~ $result)
+		$result += ' id="$id"'
+	end if
+	$result += ' />'
+	return($result)
+end method
+
+method "hidden_field_tag"($name;$val;$opt=0)
+	$result := '<input type="hidden" name="$name" value="$val"'
+	regex replace("/[\\[\\].]/";$name;"_";$id)
+	if($opt)
+		$result += html_options($opt)
+	end if
+	if('id=' !~ $result)
+		$result += ' id="$id"'
+	end if
+	
+	$result += ' />'
+	return($result)
+end method
+
+method "textarea_tag"($name;$val;$opt=0)
+	$result := '<textarea name="$name" '
+	regex replace("/[\\[\\].]/";$name;"_";$id)
+	if($opt)
+		$result += html_options($opt)
+	end if
+	if('id=' !~ $result)
+		$result += ' id="$id"'
+	end if
+	$result += ' >$val</textarea>'
+	return($result)
+end method
+
+method "check_box_tag"($name;$val;$chkd;$opt=0)
+	$result := '<input type="checkbox" name="$name" value="$val" '
+	regex replace("/[\\[\\].]/";$name;"_";$id)
+	if($opt)
+		$result += html_options($opt)
+	end if
+	if($chkd)
+		$result += ' checked="checked"'
+	end if
+	if('id=' !~ $result)
+		$result += ' id="$id"'
+	end if
+	$result += ' />'
+	return($result)
+end method
+
+method "radio_button_tag"($name;$val;$chkd;$opt=0)
+	$result := '<input type="radio"  name="$name" value="$val" '
+	regex replace("/[\\[\\].]/";$name;"_";$id)
+	if($opt)
+		$result += html_options($opt)
+	end if
+	if($chkd)
+		$result += ' checked="checked"'
+	end if
+	if('id=' !~ $result)
+		$result += ' id="$id"'
+	end if
+	$result += ' />'
+	return($result)
+end method
+
+method "select_tag"($name;$selopt;$opt=0)
+	$result := '<select name="$name"  '
+	regex replace("/[\\[\\].]/";$name;"_";$id)
+	if($opt)
+		$result += html_options($opt)
+	end if
+	if('id=' !~ $result)
+		$result += ' id="$id"'
+	end if
+	$result += ' >$selopt</select>'
+	return($result)
+end method
+
+
+
+end library
+

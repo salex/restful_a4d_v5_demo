@@ -1,0 +1,69 @@
+
+<%
+// Make the base query string for the edit links
+$baseQuery := a4d.web.collectionItemsToQuery($attributes; "ftr;ftr_name;pbst")
+$batch := $Ingredients{"batch"}
+%>
+
+<div class="dtable">
+	<div class="dactions">
+		<strong>Ingredients</strong>
+		
+
+		
+			<form name="form"  class="dfilter" action="<%=rest.controller_path("Ingredients")%>" method="get" >
+		Name: <%=form.text_field_tag("ftr_Name";$attributes{"ftr_Name"};rest.options(":size => 10"))%>
+			
+				 <input name="ftr" type="submit" value="Filter" />
+				<%if($attributes{"ftr"})%>
+					<a class="dlink-button" href="<%=rest.controller_path("Ingredients")%>">Show All</a>
+
+				<%end if%>
+			</form>
+			
+		
+		
+	</div>
+	
+	
+	<table cellspacing="0">
+		<tr class="column-heads">
+			
+			<td>Id</td>
+			<td>Name</td>
+			<td>Ship Qty</td>
+			<td>Price</td>
+			<td>Unit Name</td>
+			<td>Vendor Name</td>
+
+			<td>Actions</td>
+		</tr>
+		<%
+		$row := $Ingredients->getRow
+		$alt := true
+		while ($Ingredients->next)
+			$alt := not($alt)
+			$rowClass := choose($alt; "alt"; "")
+			$query := build query string(""; "id"; $row{"Ingredient.id"})
+			%>
+			<tr class="<%=$rowClass%>">
+				
+				<td><%=$row{"ingredient.id"}%></td>
+				<td><%=$row{"ingredient.name"}%></td>
+				<td><%=$row{"ingredient.ship_qty"}%></td>
+				<td><%=$row{"ingredient.price"}%></td>
+				<td><%=$row{"unit.name"}%></td>
+				<td><%=$row{"vendor.name"}%></td>
+
+				<td>
+					<a class="dlink-button" href="<%=rest.controller_path("Ingredients";$row{"Ingredient.id"};$baseQuery)%>">Show</a>
+					<a class="dlink-button" href="<%=rest.edit_controller_path("Ingredients";$row{"Ingredient.id"};$baseQuery)%>">Edit</a>
+					<%=delete_link("Ingredients";$row{"Ingredient.id"}) %>
+				</td>
+			</tr>
+		<%end while%>
+	</table>
+	<%=rest.utils.makeBatchDiv($batch;"ftr;ftr_name;";$attributes)%>
+	<div style="clear:both"></div>
+</div> 
+

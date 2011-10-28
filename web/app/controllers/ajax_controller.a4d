@@ -1,0 +1,9 @@
+<% 	
+	global($rest)
+	$rest := rest.get
+	$attributes := merge collections( _query;_form)
+	$attributes{"action"}:= "/"+$attributes{"oc"}+"/"+$attributes{"id"}
+	$action := "_"+$attributes{"mc"}
+	$path := $attributes{"oc"}+".a4d"
+	include($path)
+%>

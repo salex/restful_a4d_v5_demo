@@ -1,0 +1,124 @@
+<%
+/*
+	image.a4d
+	
+	Copyright (c) 2001-2010 Aparajita Fishman
+*/		
+
+c_real($width; $height)
+c_picture($pict)
+$preferredFormat := ""
+
+// The query parameters could be in the form variables collection, depending on the mode
+$params := a4d.web.getVariablesIterator
+
+case of
+	:(collection has($params; "id"))
+		$id := $params{"id"}
+		
+		if ($id[[1]] >= "1") & ($id[[1]] <= "9")
+			$id := num($id)
+		end if
+		
+		get picture from library($id; $pict)
+		
+	:(collection has($params; "img_field"))
+		$preferredFormat := "jpg"
+		$imgPtr := get field pointer($params{"img_field"})
+		
+		if (not(nil($imgPtr)))
+			$table := table(table($imgPtr))
+			
+			if ($params{"recnum"} # "")
+				goto record($table->; num($params{"recnum"}))
+				$pict := $imgPtr->
+			else
+				$field := $params{"qry_field"}
+				
+				if (length($field) > 0)
+					$qryPtr := get field pointer($table; $field)
+					
+					if (not(nil($qryPtr)))
+						get field properties($qryPtr; $type)
+						
+						if ($type = Is Alpha Field)
+							$value := $params{"qry_value"}
+						else
+							$value := num($params{"qry_value"})
+						end if
+						
+						query($table->; $qryPtr-> = $value)
+						$pict := $imgPtr->
+					end if
+				end if
+			end if
+		end if
+		
+	:(collection has($params; "file"))
+		// Remove a leading slash, it should not be there
+		$path := $params{"file"}
+		
+		if ($path[[1]] = "/")
+			$path := substring($path; 2)
+		end if
+		
+		read picture file(join paths(get root; $path); $pict)
+		
+		case of
+			:($path = "@.gif")
+				$preferredFormat := "gif"
+				
+			:($path = "@.png")
+				$preferredFormat := "png"
+		else
+			$preferredFormat := "jpg"
+		end case
+		
+	:(collection has($params; "method"))
+		$pict := call method($params{"method"}; $params{"param"}; $preferredFormat)
+		
+	:(collection has($params; "method4d"))
+		c_text($args)
+		$args := $params{"param"}
+		$pict := call 4d method($params{"method"}; $args)
+end case
+
+
+if (picture size($pict) > 0)
+	$width := $height := 0
+	
+	if ($params{"size"} # "")
+		$width := num($params{"size"})
+	else
+		if ($params{"width"} # "")
+			$width := num($params{"width"})
+		end if
+		
+		if ($params{"height"} # "")
+			$height := num($params{"height"})
+		end if
+	end if
+	
+	$format := $params{"format"}
+	
+	if ($format = "")
+		if ($preferredFormat = "")
+			$format := "png"
+		else
+			$format := $preferredFormat
+		end if
+	end if
+	
+	case of
+		:($format = "gif")
+			write gif($pict; $width; $height)
+			
+		:($format = "png")
+			write png($pict; $width; $height)
+	else
+		write jpg($pict; $width; $height)
+	end case
+else
+	set response status(404)  // not found
+end if
+%>

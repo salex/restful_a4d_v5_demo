@@ -1,0 +1,67 @@
+<_esc_		
+
+method "validRoute"($attributes)
+end method
+
+case of
+	:($action = "index")
+		$<%=$controller%> := <%=$model%>.find_all($attributes)
+		include("../views/<%=$controller%>/index.a4d")
+	:($action = "show")
+		$<%=$model%> := <%=$model%>.find($attributes)
+/*<_other_one_>*/
+		include("../views/<%=$controller%>/show.a4d")
+		
+	:($action = "new")
+		$<%=$model%> := <%=$model%>.new($attributes)
+		<%if ($rgen{"hasMandatory"})
+			write("$valid_parent := rest.validParent($circuit;$ingredient;$attributes)")
+		end if%>
+		
+/*<_other_one_>*/
+		include("../views/<%=$controller%>/new.a4d")
+		
+	:($action = "create")
+		$result := <%=$model%>.create($attributes)
+		if($result = "success")
+			session{"errmsg"} := "info:<%=$model%> Created"
+			redirect(choose($attributes{"_referer"};$attributes{"_referer"};rest.controller_path("<%=$controller%>")))
+			
+		else
+			session{"errmsg"} := "<%=$model%> NOT created. Reason: "+$result
+			redirect(choose($attributes{"_referer"};$attributes{"_referer"};rest.controller_path("<%=$controller%>")))
+		end if
+		
+	:($action = "edit")
+		$<%=$model%> := <%=$model%>.find($attributes)
+/*<_other_one_>*/
+		include("../views/<%=$controller%>/edit.a4d")
+		
+	:($action = "update")
+		$result := <%=$model%>.update($attributes)
+		if($result = "success")
+			session{"errmsg"} := "info:<%=$model%> Updated"
+			redirect(rest.controller_path("<%=$controller%>";num($attributes{"id"})))
+		else
+			session{"errmsg"} := "<%=$model%> NOT Updated. Reason: "+$result
+			redirect(rest.controller_path("<%=$controller%>";num($attributes{"id"})))
+		end if
+		
+	:($action = "destroy")
+		$result := <%=$model%>.delete($attributes)
+		if($result = "success")
+			session{"errmsg"} := "info:<%=$model%> Deleted"
+			redirect(choose($attributes{"_referer"};$attributes{"_referer"};rest.controller_path("<%=$controller%>")))
+		else
+			session{"errmsg"} := "<%=$model%> NOT deleted. Reason: "+$result
+			redirect(choose($attributes{"_referer"};$attributes{"_referer"};rest.controller_path("<%=$controller%>";num($attributes{"id"}))))
+		end if
+		
+	:($action = "_test")
+		$<%=$model%> := <%=$model%>.find($attributes)
+		include("../views/<%=$controller%>/test.a4d")
+/*<_other_many_>*/
+	else
+		Throw('Action: $action not found for controller <%=$controller%>')
+end case
+_esc_>

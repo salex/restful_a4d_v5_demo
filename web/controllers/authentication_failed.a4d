@@ -1,0 +1,6 @@
+<%
+	// Authentication failure (401) handler
+	
+	$attributes := new collection(fusebox.conf.fuseaction; "realms.authenticationFailed")
+	include("/index.a4d")
+%>

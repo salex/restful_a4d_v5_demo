@@ -1,0 +1,81 @@
+
+<%
+// Make the base query string for the edit links
+$baseQuery := a4d.web.collectionItemsToQuery($attributes; "ftr;ftr_name;pbst")
+
+%>
+<h3>Show Unit</h3>
+
+	<div class="box dform">
+		<fieldset>
+			<legend>Unit Information</legend>
+			
+       		
+					<div>
+						<label>Id</label>
+						<%=$unit{"unit.id"} %>
+						<br />
+					</div>
+			
+					<div>
+						<label>Name</label>
+						<%=$unit{"unit.name"} %>
+						<br />
+					</div>
+			
+					<div>
+						<label>Timestamp</label>
+						<%=$unit{"unit.timestamp"} %>
+						<br />
+					</div>
+			
+			
+			<br class="dclear" />
+			<div class="dactions">
+				<strong>Actions: </strong>
+				
+				<a class="dlink-button" href="<%=rest.edit_controller_path("Units";$Unit{"Unit.id"})%>">Edit</a>
+				
+				
+				<%=delete_link("Units";$Unit{"Unit.id"}) %>
+				
+				<a class="dlink-button"  href="<%=rest.controller_path("Units") %><%=choose($basequery;"?"+$basequery;"")%>">Return to Units</a>
+				
+			</div>
+		</fieldset>
+	</div>
+	
+		<fieldset>
+			<legend>Resources</legend>
+	
+			<div class="dtab">
+			
+				<input id="tab" type="hidden" value="<%=choose($attributes{"oc"} # "";$attributes{"oc"};"ingredients")%>" />
+			    <ul>
+				
+						<li id="ingredients" class="<%=choose(($attributes{"oc"} = "") | ($attributes{"oc"} = "ingredients") ;"activelink";"")%>">
+							<a href="javascript:rajaxUpdate('Units','ingredients',<%=$Unit{"Unit.id"}%>,'<%=$basequery%>')">ingredients</a>
+						</li>
+						
+					
+						<li id="vendors" class="<%=choose( ($attributes{"oc"} = "vendors") ;"activelink";"")%>">
+							<a href="javascript:rajaxUpdate('Units','vendors',<%=$Unit{"Unit.id"}%>,'<%=$basequery%>')">vendors</a>
+						</li>
+						
+					
+					
+			    </ul>
+				<br class="dclear" />
+		
+			</div>
+			<div style="clear:both"></div>
+			<div id="many-div" class="dtable"></div>
+		</fieldset>
+	
+	<script type="text/javascript" charset="utf-8">
+		<%if (collection has($attributes;"bst"))%>
+			rajaxUpdate('Units',$('tab').value,<%=$Unit{"Unit.id"}%>,'<%=$basequery%>','<%=$attributes{"bst"} %>')
+		<%else%>
+			rajaxUpdate('Units',$('tab').value,<%=$Unit{"Unit.id"}%>,'<%=$basequery%>')
+		<%end if%>
+	</script>

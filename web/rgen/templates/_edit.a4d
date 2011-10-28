@@ -1,0 +1,6 @@
+<h3>Edit <%=$model%></h3>
+<_esc_
+	$submitAction := "Update"
+	$form_action := rest.controller_path("<%=$controller%>";num($attributes{"id"})) 
+	include("_form.a4d")
+_esc_>

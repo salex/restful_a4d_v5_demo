@@ -1,0 +1,297 @@
+<h1>How it Works</h1>
+<%include("dlist.a4d")%>
+
+<div id="content-right" class="col-25 dpara"  >
+
+
+<h1>Changes in Active4D directory and basic fusebox files in a Restful circuit</h1>
+<div class="indent">active4d.ini modified to include library directories: <web>/app/helpers ; <web>/app/models; <web>/rest</div>
+<div class="indent">active4d.ini modified to add ajax_controller.a4d to fusebox page directive </div>
+<div class="indent">active4d.a4l "On Request" method modified to rewrite restful paths into fusebox circuit/action</div>
+<div class="indent">active4d.a4l "On Application Start" method modified to init the rest.a4l library</div>
+<div class="indent">FBX_circuits all point to /root/app/controllers</div>
+<div class="indent">FBX_circuits defines and gets a global $rest collection from rest.a4l</div>
+<div class="indent">CSS main.css replaced to use grid layout and basic scaffold selectors</div>
+<div class="indent">/views/layouts directory modified for new css</div>
+<div class="indent">web_static/images - several images added</div>
+<div class="indent">web_static/js - prototype.js and rest.js added</div>
+		
+<h1>Active4D.a4l "on request"</h1>
+
+<p>Restful URLs are in the format of:</p>
+<ul class="indent">
+	<li>/controller</li>
+	<li>/controller/id</li>
+	<li>/controller/new</li>
+	<li>/controller/_action -- this is actually the same as fusebox.urlFactory</li>
+	<li>/controller/id/edit</li>
+	<li>/controller/id/_action</li>
+	<li>/parent/id/controller</li>
+	<li>/parent/id/controller/new</li>
+	<li>/parent1/id/parent2/id/controller/new</li>
+</ul>
+<br />
+<p">On Request" splits the URL on the / and then, depending on the number of sections, if there is an id present, 
+and certain keywords (new, edit, _{action}) it 
+rewrites the URL to fusebox controller/action and adds query parameters. Since I don&rsquo;t have access
+to the form collection, some actions are delayed being set until it hits FBX_switch.a4d in 
+the /app/controllers directory. You can view the Active4d.a4l "On Request" method in the section on source code.</p>
+
+<p>The FBX_switch file is below:</p>
+<textarea class="code" rows="22" cols="70">
+
+include("application_controller.a4d")
+ /* Basicly same function as fbx_setting*/
+
+$fuseaction := $fusebox{"fuseaction"}
+$circuit := $fusebox{"circuit"}
+$action := choose($fuseaction = "main";"index";$fuseaction)
+if ($action = "error")
+	session{"errMsg"} := "Invalid Route or Action for "+$circuit
+	include("/views/dsp_errorHandler.a4d")
+	return
+end if
+if ($action = "_method")
+	case of
+		:($attributes{"_method"} = "put")
+			$action := "update"
+		:($attributes{"_method"} = "delete")
+			$action := "destroy"
+	end case
+end if
+
+include($circuit+"_controller.a4d")
+
+</textarea>
+<p>The circuit controller then takes over and responds to the CRUD actions and any other custom actions.</p>
+
+
+<h1>Typical Restful Active4D app directory</h1>
+
+	<textarea class="code" rows="20" cols="70">
+
+app/
+	controllers/
+		Addresses_controller.a4d
+		ajax_controller.a4d
+		application_controller.a4d
+		fbx_switch.a4d
+		Ingredients_controller.a4d
+		Units_controller.a4d
+		Vendors_controller.a4d
+	helpers/
+		Addresses.a4l
+		Ingredients.a4l
+		Units.a4l
+		Vendors.a4l
+	models/
+		Address.a4l
+		Ingredient.a4l
+		Unit.a4l
+		Vendor.a4l
+	views/
+		Addresses/
+			_form.a4d
+			edit.a4d
+			index.a4d
+			new.a4d
+			show.a4d
+		Ingredients/
+			_form.a4d
+			edit.a4d
+			index.a4d
+			new.a4d
+			show.a4d
+		Units/
+			_form.a4d
+			_Ingredients.a4d
+			_Vendors.a4d
+			edit.a4d
+			index.a4d
+			new.a4d
+			show.a4d
+		Vendors/
+			_form.a4d
+			_Ingredients.a4d
+			edit.a4d
+			index.a4d
+			new.a4d
+			show.a4d
+	</textarea>
+	
+	<p>Both Fusebox and Restful Active4D on top of it, use the Model/View/Controller architecture to isolate presentation from business logic.</p>
+	
+	<p>Like RoR, Restful Active4D uses singular names for models and plural names for controllers. The model library does all the database access, create, updates and deletes. The controller, which is very similar to FBX_switch, controls access to the models and view. The model contains the CUD method for a4d.utils.cud. In the simple 
+	generated model, about the only difference between one model and the next is the name! The typical model would contain these methods: </p>
+
+	<textarea class="code" rows="14" cols="70">
+	library "Vendor"
+		method "cudVendor"($cudAction; $cudPhase; $cudTable; $cudResult; $params; $cudTimestampField; $cudTimestamp)
+		method "create"($attributes)	
+		method "update"($attributes)
+		method "delete"($attributes)
+		method "find_all"($attributes)
+		method "find"($attributes)
+		method "find_related"($relModel;$attributes;$parent=0)
+		method "new"($attributes)
+		method "_filter"($attributes)
+	end library
+	</textarea>
+
+	<p>Compared to fusebox, the find methods do the same as the "qry_many", "qry_one", etc. The create/update/delete methods do the same
+as the act_ fusebox methods. As you can see, very little is passed to these methods - it knows what model it is working on and
+every thing else that is needed (ID) is contained the $attributes. The generated model just calls a method in the rest library with
+the same name, but more parameters. Those rest methods then call RowSet or Batch library methods. In this version, the call to
+rowSet.newFromSelection uses a map that contains all fields for that table. The map is generated using techniques similar to
+a4d.dump.selection. Of course, you don&rsquo;t have to use the rest finders and build your own rowset. A few other differences in
+the generated approach is that all column names in a rowset are formatted "model.field:[table]field;". This allows, if you wish, to
+have a form that updates multiple models. <p>
+
+<p>It should be pointed out that all the finder methods in the model just call expanded finder methods in the rest library</p>
+
+<dl>
+	<dt><code>method "new"($model)</code></dt>
+		<dd>Uses create record to get a collection of the models fields.</code></dd>
+	<dt><code>method "find"($model;$id)</code></dt>
+		<dd>Does a query of the ID field of the model. Return a single instance of the record. Actually uses rowSet,
+		but basically returns $rowset->first.</dd>
+	<dt><code>method "find_as"($model;$as;$id;$opt=0)</code></dt>
+		<dd>Does a polymorphic query of the model based on the association.</dd>
+	<dt><code>method "find_by_attr"($model;$attr;$key;$opt=0)</code></dt>
+		<dd>Finds a single record with some field other than ID.</dd>
+	<dt><code>method "find_all"($model;$attributes;$opt=0)</code></dt>
+		<dd>Get all records for a model and puts them in a rowset.</dd>
+	<dt><code>method "find_all_by_attr"($model;$attr;$key;$attributes;$opt=0)</code></dt>
+		<dd>Gets all records of a model with a key and returns a rowset.</dd>
+	<dt><code>method "find_all_as"($model;$as;$id;$attributes;$opt=0)</code></dt>
+		<dd>Finds all records matching a polymorphic association.</dd>
+	<dt><code>method "find_all_through"($model;$id;$relModel;$attributes;$opt=0)</code></dt>
+		<dd>Finds all records through an intersection table.</dd>
+	<dt><code>method "find_related"($model;$relModel;$attributes;$parent=0)</code></dt>
+		<dd>Uses the $rest collection to determine the asscioation and then calls one of the above methods.</dd>
+</dl>
+<p>Remember, that finders are optional, you can always just query and call rest.make_rowset.<p>
+
+<p>If a record is batched (there is an option parameter :nobatch), the batch collection is added to the rowset collection</p>
+	<h1>A typical generated controller example follows:</h1>
+
+	<textarea class="code" rows="20" cols="70">
+
+	method "validRoute"($attributes)
+	end method
+
+	case of
+		:($action = "index")
+			$Ingredients := Ingredient.find_all($attributes)
+			include("../views/Ingredients/index.a4d")
+			
+		:($action = "show")
+			$Ingredient := Ingredient.find($attributes)
+			$unit := Ingredient.find_related("unit";$attributes;$Ingredient)
+			$vendor := Ingredient.find_related("vendor";$attributes;$Ingredient)
+			include("../views/Ingredients/show.a4d")
+
+		:($action = "new")
+			$Ingredient := Ingredient.new($attributes)
+			$valid_parent := rest.validParent($circuit;$ingredient;$attributes)
+			$unit := Ingredient.find_related("unit";$attributes;$Ingredient)
+			$vendor := Ingredient.find_related("vendor";$attributes;$Ingredient)
+			include("../views/Ingredients/new.a4d")
+
+		:($action = "create")
+			$result := Ingredient.create($attributes)
+			if($result = "success")
+				session{"errmsg"} := "info:Ingredient Created"
+				redirect(choose($attributes{"_referer"};$attributes{"_referer"};rest.controller_path("Ingredients")))
+			else
+				session{"errmsg"} := "Ingredient NOT created. Reason: "+$result
+				redirect(choose($attributes{"_referer"};$attributes{"_referer"};rest.controller_path("Ingredients")))
+			end if
+
+		:($action = "edit")
+			$Ingredient := Ingredient.find($attributes)
+			$unit := Ingredient.find_related("unit";$attributes;$Ingredient)
+			$vendor := Ingredient.find_related("vendor";$attributes;$Ingredient)
+			include("../views/Ingredients/edit.a4d")
+
+		:($action = "update")
+			$result := Ingredient.update($attributes)
+			if($result = "success")
+				session{"errmsg"} := "info:Ingredient Updated"
+				redirect(rest.controller_path("Ingredients";num($attributes{"id"})))
+			else
+				session{"errmsg"} := "Ingredient NOT Updated. Reason: "+$result
+				redirect(rest.controller_path("Ingredients";num($attributes{"id"})))
+			end if
+
+		:($action = "destroy")
+			$result := Ingredient.delete($attributes)
+			if($result = "success")
+				session{"errmsg"} := "info:Ingredient Deleted"
+				redirect(choose($attributes{"_referer"};$attributes{"_referer"};rest.controller_path("Ingredients")))
+			else
+				session{"errmsg"} := "Ingredient NOT deleted. Reason: "+$result
+				redirect(choose($attributes{"_referer"};$attributes{"_referer"};rest.controller_path("Ingredients";num($attributes{"id"}))))
+			end if
+
+		:($action = "_test")
+			$Ingredient := Ingredient.find($attributes)
+			include("../views/Ingredients/test.a4d")
+
+		else
+			Throw('Action: $action not found for controller Ingredients')
+	end case
+      </textarea>
+		
+		 <p>The last two actions, _test & _ingredients, are how I implemented actions that are not one of the seven CRUD
+        actions. _ingredients builds an index table of related ingredients and is usually called by ajax.</p>
+
+	<h1>Libraries and helpers</h1>
+
+ <p>Helper libraries are generated for each controller, but not used. It would serve the same purpose of a library in a fusebox
+circuit.</p>
+<p>Many library methods include a <i>optional</i> $options (or $opt) parameter that passes a collection to the method. When 4D patterned their
+language after Pascal, they should of included the the option of named parameters, but didn&rsquo;t. Passing $options basically gives
+you named parameters. As long as I have been using Active4D, I can usually remember what the required and optional paramenters are, but  
+most likely have to lookup what position or order they are passed in. The $options technique helps with that memory problem.
+</p>
+	<p>The form.a4l library contains helper methods to build form tags:</p>
+
+ <div class="indent"> <code>method "text_field_tag"($name;$val;$opt=0) </code></div>
+
+ <p>Just builds an input text form field. It can be passed an options collection that will add HTML options. There is also a
+rest.options method that will call new collection using an optional RoR style for defining hashes or collections. For instance:</p>
+
+ <div class="indent">
+<code>form.text_field_tag"("vendor.name";$vendor{"vendor.name""};rest.options(':size => 25; :disabled := "disabled"; "class";"myclass"'))
+</code></div>
+<br />
+
+ <p>It just provides optional ways of doing:</p>
+ <div class="indent">
+ <code>new collection("size";25;"disabled";"disabled";"class";"myclass") </code>
+</div>
+<p>You can use ":=" "->" "=>" or ";" between the key and value. The :string format
+allows you to define strings without using quotes - only works for strings without spaces.</> 
+<h1>Views</h1>
+<p>Somethings you&rsquo;ll notice in the views:
+
+<dl>
+	<dt>The only submit buttons you will see is "Update", "Create", or "Filter"</dt>
+		<dd>All other actions (e.g., "Cancel", "Delete") are done throught links</dd>
+	<dt>There are no breadcrumbs</td>
+		<dd>The Show and Edit/New views will have link back to the controller (index) and to any parent
+		controller (index and show links). If you drill down, you can drill up - or just use the menu links!</dd>
+	<dt>Filter is used instead of search</dt>
+		<dd>If multiple fields are defined in filter, they are considered AND seraches. Text only at this time</dd>
+	<dt>Returning from update, create or delete is set to a default _request{"_referer"}</dt>
+		<dd>If you edit or create an Ingredient from a Vendor, you will return to the Vendor Show</dd>
+	<dt>Applicable "Edit", "Show", and "Delete" links are available in the show, edit and index views.</dt>
+		<dd>The delete link is actually a javascript call that creates and submits a form after the "Are you sure?" alert.</dd>
+	
+</dl>
+<br />
+<br />
+<h1>That&rsquo;s all folks!</h1> 
+
+</div>

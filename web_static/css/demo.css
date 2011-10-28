@@ -1,0 +1,255 @@
+/*
+	Demo css
+*/
+
+#demo-form, #demo-form th, #demo-form td {
+	font:		normal 12px Verdana, Helvetica, Arial, sans-serif;
+	background:	#fff;
+	color:		#000;
+	text-align:	left;
+	padding:	0;
+	margin:		0;
+	border:		none;
+}
+
+#demo-form table {
+	background:		#fff;
+}
+
+#demo-form .title {
+	background:		#9999ff;
+	font-weight:	bold;
+	white-space:	nowrap;
+}
+
+#demo-form td {
+	background:	#e0e0e0;
+	padding:	5px;
+}
+
+#demo-form th {
+	background:		#bbbbff;
+	font-weight:	bold;
+	padding:		5px;
+}
+
+#demo-form td.label {
+	background:		#d0d0d0;
+	white-space: 	nowrap;
+}
+
+#demo-form td.top {
+	vertical-align: top;
+}
+
+#demo-form td.inline {
+	width:	720px
+}
+
+#demo-form td.current {
+	background: #ffc9d9;
+}
+
+#demo-form td.alt {
+	background: #f0f0f0;
+}
+
+#demo-form .num {
+	width:		10px;
+	text-align:	center;
+}
+
+#demo-form .no-wrap {
+	white-space: nowrap;
+}
+
+#demo-form input.button {
+	margin: 1em 0 0 0;
+}
+
+#demo-form .warning {
+	background:	#ff7777;
+}
+
+
+/* lists */
+
+#demo-list .right {
+	text-align: right;
+}
+
+#demo-list, #demo-list th, #demo-list td {
+	font:		normal 12px Verdana, Helvetica, Arial, sans-serif;
+	color:		#000;
+	text-align:	left;
+	padding:	0;
+	margin:		0;
+	border:		none;
+}
+
+#demo-list, #demo-list th {
+	background:	#fff;
+}
+
+#demo-list table {
+	background:		#fff;
+}
+
+#demo-list .title {
+	background:		#9999ff;
+	font-weight:	bold;
+	white-space:	nowrap;
+}
+
+#demo-list tr {
+	background:	#e0e0e0;
+}
+
+#demo-list tr.alt {
+	background: #f0f0f0;
+}
+
+#demo-list td {
+	padding:	5px 8px;
+}
+
+#demo-list th {
+	background:		#bbbbff;
+	font-weight:	bold;
+	padding:		5px 7px;
+}
+
+#demo-list td.empty {
+	background: #fff;
+}
+
+#demo-list td.label {
+	background:		#d0d0d0;
+	white-space: 	nowrap;
+}
+
+#demo-list td.top {
+	vertical-align: top;
+}
+
+#demo-list td.inline {
+	width:	720px
+}
+
+#demo-list td.current {
+	background: #ffc9d9;
+}
+
+#demo-list th.center, #demo-list td.center {
+	text-align:	center;
+}
+
+#demo-list .num {
+	width:		10px;
+	text-align:	center;
+}
+
+#demo-list .no-wrap {
+	white-space: nowrap;
+}
+
+#demo-list input.button {
+	margin: 1em 0 0 0;
+}
+
+#demo-list td a:link {
+	text-decoration:	none;
+	color:				#295eff;
+}
+
+#demo-list td a:visited {
+	text-decoration:	none;
+	color:				#295eff;
+}
+
+#demo-list td a:hover {
+	text-decoration:	none;
+	color:				#00cc33;
+}
+
+#demo-list td a:active {
+	text-decoration:	none;
+	color:				#00cc33;
+}
+
+
+/* breadcrumbs */
+
+#breadcrumbs {
+	margin: 		0 0 1em 0;
+	padding:		.5em;
+	text-indent:	1em;
+	background:		#f0f0f0;
+	border-width:	1px;
+	border-style:	solid;
+	border-color:	#fff #ccc #ccc #fff;
+}
+
+#breadcrumbs a:link {
+	text-decoration:	none;
+	color:				#668cff;
+}
+
+#breadcrumbs a:visited {
+	text-decoration:	none;
+	color:				#668cff;
+}
+
+#breadcrumbs a:hover {
+	text-decoration:	none;
+	color:				#00cc33;
+}
+
+#breadcrumbs a:active {
+	text-decoration:	none;
+	color:				#668cff;
+}
+
+
+/* icons */
+.icon-add {
+	background-image: url(/images/add.png) !important;
+}
+
+.ext-ie6.icon-add {
+	background-image: url(/images/add.gif) !important;
+}
+
+.icon-edit {
+	background-image: url(/images/pencil.png) !important;
+}
+
+.ext-ie6.icon-edit {
+	background-image: url(/images/pencil.gif) !important;
+}
+
+.icon-delete {
+	background-image: url(/images/delete.png) !important;
+}
+
+.ext-ie6.icon-delete {
+	background-image: url(/images/delete.gif) !important;
+}
+
+/* Fix to prevent MessageBox content from wrapping under icon */
+.x-window-dlg .ext-mb-content{
+  overflow/**/: auto;
+}
+
+.ux-msgbox ul {
+	list-style-type: square;
+	margin: 0 0 1em 2em;
+}
+
+.ux-msgbox li {
+	margin: .25em 0;
+}
+
+.demo-form .x-form-item {
+	margin-bottom: 9px;
+}

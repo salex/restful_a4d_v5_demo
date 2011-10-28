@@ -1,0 +1,65 @@
+<%		
+
+method "validRoute"($attributes)
+end method
+
+case of
+	:($action = "index")
+		$Adm_vendors := Adm_vendor.find_all($attributes)
+		include("../views/Adm_vendors/index.a4d")
+	:($action = "show")
+		$Adm_vendor := Adm_vendor.find($attributes)
+
+		include("../views/Adm_vendors/show.a4d")
+		
+	:($action = "new")
+		$Adm_vendor := Adm_vendor.new($attributes)
+		
+		
+
+		include("../views/Adm_vendors/new.a4d")
+		
+	:($action = "create")
+		$result := Adm_vendor.create($attributes)
+		if($result = "success")
+			session{"errmsg"} := "info:Adm_vendor Created"
+			redirect(choose($attributes{"_referer"};$attributes{"_referer"};rest.controller_path("Adm_vendors")))
+			
+		else
+			session{"errmsg"} := "Adm_vendor NOT created. Reason: "+$result
+			redirect(choose($attributes{"_referer"};$attributes{"_referer"};rest.controller_path("Adm_vendors")))
+		end if
+		
+	:($action = "edit")
+		$Adm_vendor := Adm_vendor.find($attributes)
+
+		include("../views/Adm_vendors/edit.a4d")
+		
+	:($action = "update")
+		$result := Adm_vendor.update($attributes)
+		if($result = "success")
+			session{"errmsg"} := "info:Adm_vendor Updated"
+			redirect(rest.controller_path("Adm_vendors";num($attributes{"id"})))
+		else
+			session{"errmsg"} := "Adm_vendor NOT Updated. Reason: "+$result
+			redirect(rest.controller_path("Adm_vendors";num($attributes{"id"})))
+		end if
+		
+	:($action = "destroy")
+		$result := Adm_vendor.delete($attributes)
+		if($result = "success")
+			session{"errmsg"} := "info:Adm_vendor Deleted"
+			redirect(choose($attributes{"_referer"};$attributes{"_referer"};rest.controller_path("Adm_vendors")))
+		else
+			session{"errmsg"} := "Adm_vendor NOT deleted. Reason: "+$result
+			redirect(choose($attributes{"_referer"};$attributes{"_referer"};rest.controller_path("Adm_vendors";num($attributes{"id"}))))
+		end if
+		
+	:($action = "_test")
+		$Adm_vendor := Adm_vendor.find($attributes)
+		include("../views/Adm_vendors/test.a4d")
+
+	else
+		Throw('Action: $action not found for controller Adm_vendors')
+end case
+%>

@@ -1,0 +1,13 @@
+<%
+	// $Id: index.a4d 853 2008-07-08 19:33:05Z aparajita $
+	
+	global($fbx_self)
+	c_string(255; $fbx_self)
+	$fbx_self := current file
+	
+	if (undefined($attributes))
+		$attributes := 0
+	end if
+	
+	fusebox.core(directory of(current path); $attributes)
+%>

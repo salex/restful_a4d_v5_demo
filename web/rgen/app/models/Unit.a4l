@@ -1,0 +1,113 @@
+
+library "Unit"
+
+method "cudUnit"($cudAction; $cudPhase; $cudTable; $cudResult; $params; $cudTimestampField; $cudTimestamp)
+	case of 
+		:($cudPhase = "query")
+			unload record([units])
+			if ($cudAction # "create")
+					query([units]; [units]id = num($params{"Unit.id"}))
+			end if
+		:($cudPhase = "update") 
+			rest.buildFromParams("units";$params)
+		:($cudPhase = "post") 
+			_request{"new_id"} := [units]id
+		:($cudPhase = "delete") 
+		:($cudPhase = "cleanup") 
+	end case
+	return ("success") 
+end method 
+
+method "create"($attributes)
+	start transaction
+	$cudAction := "create"
+	$params := a4d.utils.filtercollection($attributes;"Unit.@")
+	$result := a4d.utils.cud($cudAction; ->[units]; "cudUnit"; $params)
+	if ($result # "success")
+		cancel transaction
+		return($result)
+	end if
+	
+	validate transaction
+	return($result)
+end method
+
+method "update"($attributes)
+	start transaction
+	$cudAction := "update"
+	$params := a4d.utils.filtercollection($attributes;"Unit.@")
+	$params{"Unit.id"} := $attributes{"id"} // id is in rest path
+	$result := a4d.utils.cud($cudAction; ->[units]; "cudUnit"; $params)
+	if ($result # "success")
+		cancel transaction
+		return($result)
+	end if
+	
+	validate transaction
+	return($result)
+	
+end method
+
+method "delete"($attributes)
+	start transaction
+	$params := a4d.utils.filtercollection($attributes;"Unit.@")
+	$cudAction := "delete"
+	$params{"Unit.id"} := $attributes{"id"} // id is in rest path
+	$result := a4d.utils.cud($cudAction; ->[units]; "cudUnit"; $params)
+	if ($result # "success")
+		cancel transaction
+		return("Failed in Unit: "$result)
+	end if
+	
+	
+	
+	
+	validate transaction
+	return($result)
+end method
+
+method "find_all"($attributes)
+	
+	all records([units])
+	
+	$callback := """
+	
+	"""
+	$include_map := ""
+	if ($attributes{"ftr"})
+		_filter($attributes)
+	end if
+	if ($attributes{"bst"})
+		$attributes{"pbst"} := $attributes{"bst"}
+	else
+		if ($attributes{"pbst"})
+			$attributes{"bst"} := $attributes{"pbst"}
+		end if
+	end if
+	order by([units];[units]name;>)
+	return(rest.build_rowset("Unit";$attributes;new collection("include_map";$include_map;"callback" ;$callback)))
+end method
+
+method "find"($attributes)
+	return(rest.find("Unit";$attributes{"id"}))
+end method
+
+method "find_related"($relModel;$attributes;$parent=0)
+	return(rest.find_related("Unit";$relModel;$attributes;$parent))
+end method
+
+method "new"($attributes)
+	return(rest.new("Unit"))
+end method
+
+method "_filter"($attributes)
+		
+	if ($attributes{"ftr_name"}) 
+		query selection([Units]; [Units]name = $attributes{"ftr_name"}) 
+	end if
+			
+	
+end method
+
+end library
+

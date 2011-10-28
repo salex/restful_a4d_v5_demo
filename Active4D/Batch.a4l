@@ -1,0 +1,765 @@
+/*
+	Active4D private -- DO NOT EDIT!
+	
+	Copyright (c) 2005-2009 Aparajita Fishman
+*/
+
+library "batch"
+
+
+/*
+	PUBLIC METHODS
+*/
+
+
+// The default query param to use in batch links
+
+define(kStartParam; "bst")
+
+
+
+/***************************************************************************************************
+	Batch creation
+	
+	Each of the newFromX methods offer the following promise and initializes the following
+	attributes in the batch:
+	
+	Promise:	Returns a fully constructed batch. $inStart and $inEnd are 1-based
+				indexes into the data source. If the next batch would contain no more than
+				$inOrphan rows, it is combined with the current batch. $inOverlap 
+				is the number of rows shared by adjacent batches. If $inSize is not 
+				specified, it is computed from $inStart and $inEnd. Failing that, it is 10.
+				If $inEnd is not specified or is zero, it is computed from the other parameters.
+	
+	Attributes:
+	row_count	Number		Total number of rows in the data source
+	size		Number		Size of the batch
+	start		Number		The starting index of the batch
+	end			Number		The ending index (inclusive) of the batch
+	orphan		Number		Minimum batch size
+	overlap		Number		How many rows to overlap in each batch
+***************************************************************************************************/
+
+
+
+/***************************************************************************************************
+	setDefaults
+	
+	Purpose:	Set defaults for values used to make batches and batch links.
+	Require:	Nothing.  
+	Promise:	If values are left empty or omitted when calling makeFuseboxLinks or makeLinks,
+				these defaults will be used.
+	Errors:		None
+	
+	Parameters:
+	$inPrevious		Text		->	The HTML text to display for the previous batch link,
+									or empty to display none. If it contains "|", the text following
+									it is the class to use for the link.
+	$inSeparator	Text		->	The HTML text to insert between batch numbers.
+									If it contains "|", the text following it is the class to use
+									for the batch links.
+	$inNext			Text		->	The HTML text to display for the next batch link,
+									or empty to display none. 
+	$inCurBatchTag	Text		->	Tag to enclose current batch in. If it contains "|", the text
+									following it is the class to use for the tag.
+	$inStartParam	Text		->	The query parameter name which will contain the starting index
+									of the batch in the links.
+	$inSize			Number		->	Size of batch.
+	$inMinSize		Number		->	Minimum size of a batch.
+	$inOverlap		Number		->	Overlap between batches.
+	$inMaxBatches	Number		->	Maximum number of batches to display, or <= 0 for unlimited. 
+***************************************************************************************************/
+
+method "setDefaults"($inSize; $inMinSize; $inOverlap; $inMaxBatches; $inPrevious; $inSeparator; $inNext; $inCurBatchTag; $inStartParam)
+	
+	self{"_size"}			:= max of($inSize; 1)
+	self{"_minSize"}		:= max of($inMinSize; 1)
+	self{"_overlap"}		:= max of($inOverlap; 0)
+	self{"_maxBatches"}		:= $inMaxBatches
+	self{"_previous"} 		:= $inPrevious
+	self{"_separator"} 		:= $inSeparator
+	self{"_next"}			:= $inNext
+	self{"_curBatchTag"}	:= $inCurBatchTag
+	self{"_startParam"}		:= $inStartParam
+	
+end method
+
+method "setSize"($inSize)
+	self{"_size"}			:= max of($inSize; 1)
+	
+end method
+
+
+/***************************************************************************************************
+	getDefaults
+	
+	Purpose:	Get defaults for values used to make batch links.
+	Require:	Nothing.  
+	Promise:	Nothing special.
+	Errors:		None
+	
+	Parameters:
+	$outSize			Number	->	Size of batch.
+	$outMinSize			Number	->	Minimum size of a batch.
+	$outOverlap			Number	->	Overlap between batches.
+	$outMaxBatches		Number	<-	Maximum number of batches to display, or <= 0 for unlimited. 
+	$outPrevious		Text	<-	The HTML text to display for the previous batch link,
+									or empty to display none. If it contains "|", the text following
+									it is the class to use for the link.
+	$outSeparator		Text	<-	The HTML text to insert between batch numbers.
+									If it contains "|", the text following it is the class to use
+									for the batch links.
+	$outNext			Text	<-	The HTML text to display for the next batch link,
+									or empty to display none. 
+	$outCurBatchTag		Text	<-	Tag to enclose current batch in. If it contains "|", the text
+									following it is the class to use for the tag.
+	$outStartParam		Text	<-	The query parameter name which will contain the starting index
+									of the batch in the links.
+***************************************************************************************************/
+
+method "getDefaults"(&$outSize; &$outMinSize; &$outOverlap; &$outMaxBatches; &$outPrevious; &$outSeparator; &$outNext; &$outCurBatchTag; &$outStartParam)
+	
+	$outSize		:= self{"_size"}
+	$outMinSize		:= self{"_minSize"}
+	$outOverlap		:= self{"_overlap"}
+	$outMaxBatches	:= self{"_maxBatches"}
+	$outPrevious 	:= self{"_previous"}
+	$outSeparator 	:= self{"_separator"}
+	$outNext		:= self{"_next"}
+	$outCurBatchTag	:= self{"_curBatchTag"}
+	$outStartParam	:= self{"_startParam"}
+	
+end method
+
+
+
+/***************************************************************************************************
+	dumpDefaults
+	
+	Purpose:	Show defaults for values used to make batch links.
+	Require:	Nothing.  
+	Promise:	A formatted dump of the defaults.
+	Errors:		None
+***************************************************************************************************/
+
+method "dumpDefaults"
+	
+	a4d.debug.dump collection(self; "Batch defaults")
+	
+end method
+
+
+
+/***************************************************************************************************
+	new
+	
+	Purpose:	Create a new batch.
+	Require:	Nothing. 
+	Promise:	See "Batch creation" above.
+	Errors:		None
+	
+	Parameters:
+	$inRowCount	Number	->	Number of rows on which batch is based
+	$inSize		Number	->	Size of the batch
+	$inStart	Number	->	The starting index into the RowSet for the batch
+	$inEnd		Number	->	The ending index (inclusive) into the RowSet for the batch
+	$inOrphan	Number	->	Minimum batch size
+	$inOverlap	Number	->	How many rows to overlap in each batch
+	RESULT		Longint	<-	The fully constructed batch
+***************************************************************************************************/
+
+method "new"($inRowCount; $inSize = -1; $inStart = -1; $inEnd = -1; $inOrphan = -1; $inOverlap = -1)
+	
+	return (_init($inRowCount; $inSize; $inStart; $inEnd; $inOrphan; $inOverlap))
+	
+end method
+
+
+
+/***************************************************************************************************
+	newFromRowSet
+	
+	Purpose:	Create a new batch from a RowSet.
+	Require:	A valid RowSet. 
+	Promise:	See "Batch creation" above.
+	Errors:		None
+	
+	Parameters:
+	$inRowSet	RowSet	->	RowSet on which to base the batch
+	$inSize		Number	->	Size of the batch
+	$inStart	Number	->	The starting index into the RowSet for the batch
+	$inEnd		Number	->	The ending index (inclusive) into the RowSet for the batch
+	$inOrphan	Number	->	Minimum batch size
+	$inOverlap	Number	->	How many rows to overlap in each batch
+	RESULT		Longint	<-	The fully constructed batch
+***************************************************************************************************/
+
+method "newFromRowSet"($inRowSet; $inSize = -1; $inStart = -1; $inEnd = -1; $inOrphan = -1; $inOverlap = -1)
+	
+	return (_init($inRowSet->rowCount; $inSize; $inStart; $inEnd; $inOrphan; $inOverlap))
+	
+end method
+
+
+
+/***************************************************************************************************
+	newFromSelection
+	
+	Purpose:	Create a new batch from a selection of records.
+	Require:	$inTable is a valid table pointer. 
+	Promise:	See "Batch creation" above.
+	Errors:		None
+	
+	Parameters:
+	$inTable	->[table]	->	Pointer to table whose selection the batch is based on
+	$inSize		Number		->	Size of the batch
+	$inStart	Number		->	The starting index into the selection for the batch
+	$inEnd		Number		->	The ending index (inclusive) into the selection for the batch
+	$inOrphan	Number		->	Minimum batch size
+	$inOverlap	Number		->	How many rows to overlap in each batch
+	RESULT		Longint		<-	The fully constructed batch
+***************************************************************************************************/
+
+method "newFromSelection"($inTable; $inSize = -1; $inStart = -1; $inEnd = -1; $inOrphan = -1; $inOverlap = -1)
+	
+	return (_init(records in selection($inTable->); $inSize; $inStart; $inEnd; $inOrphan; $inOverlap))
+	
+end method
+
+
+
+/***************************************************************************************************
+	newFromArray
+	
+	Purpose:	Create a new batch from an array.
+	Require:	Nothing. 
+	Promise:	See "Batch creation" above.
+	Errors:		None
+	
+	Parameters:
+	$inArray	Array		->	Array the batch is based on
+	$inSize		Number		->	Size of the batch
+	$inStart	Number		->	The starting index into the array for the batch
+	$inEnd		Number		->	The ending index (inclusive) into the array for the batch
+	$inOrphan	Number		->	Minimum batch size
+	$inOverlap	Number		->	How many rows to overlap in each batch
+	RESULT		Longint		<-	The fully constructed batch
+***************************************************************************************************/
+
+method "newFromArray"(&$inArray; $inSize = -1; $inStart = -1; $inEnd = -1; $inOrphan = -1; $inOverlap = -1)
+	
+	return (_init(size of array($inArray); $inSize; $inStart; $inEnd; $inOrphan; $inOverlap))
+	
+end method
+
+
+
+/***************************************************************************************************
+	next
+	
+	Purpose:	Get the parameters for the next batch.
+	Require:	$self is a valid batch. 
+	Promise:	If there is a next batch, $ioStart = index of first item in batch, $ioEnd = index
+				of last item in batch, $ioLength = size of batch.
+	Errors:		None
+	
+	Parameters:
+	$self		Batch		->	Original Batch
+	$ioLength	Number		<->	Actual size of the batch
+	$ioStart	Number		<->	The starting index of the batch
+	$ioEnd		Number		<->	The ending index (inclusive) of the batch
+	RESULT		Boolean		<-	True if there is a next batch, false if not
+***************************************************************************************************/
+
+method "next"($self; &$ioLength; &$ioStart; &$ioEnd)  // -> outIsNext
+
+	if ($ioEnd >= $self{"row_count"})
+		return (false)
+	else
+		$ioStart := $ioEnd - $self{"overlap"} + 1
+		$ioEnd := 0
+		_normalize($self{"row_count"}; $ioLength; $ioStart; $ioEnd; $self{"orphan"}; $self{"overlap"})
+		$ioLength := $ioEnd - $ioStart + 1
+		return (true)
+	end if
+
+end method
+
+
+
+/***************************************************************************************************
+	previous
+	
+	Purpose:	Get the parameters for the previous batch.
+	Require:	$self is a valid batch. 
+	Promise:	If there is a previous batch, $ioStart = index of first item in batch, 
+				$ioEnd = index of last item in batch, $ioLength = size of batch.
+	Errors:		None
+	
+	Parameters:
+	$self		Batch		->	Original Batch
+	$ioLength	Number		<->	Actual size of the batch
+	$ioStart	Number		<->	The starting index of the batch
+	$ioEnd		Number		<->	The ending index (inclusive) of the batch
+	RESULT		Boolean		<-	True if there is a previous batch, false if not
+***************************************************************************************************/
+
+method "previous"($self; &$ioLength; &$ioStart; &$ioEnd)  // -> outIsPrevious
+
+	$start := $ioStart
+	$ioStart := $ioStart - $self{"size"} + $self{"overlap"}
+	$ioEnd := 0
+	_normalize($self{"row_count"}; $ioLength; $ioStart; $ioEnd; $self{"orphan"}; $self{"overlap"})
+	
+	if (($start = 1) & ($self{"start"} = 1))
+		return (false)
+	else
+		return (true)
+	end if
+
+end method
+
+
+
+/***************************************************************************************************
+	getStarts
+	
+	Purpose:	Get an array of the batch starting indexes
+	Require:	$outStarts is a longint array 
+	Promise:	$outStarts will contain one element for each batch in the entire sequence.
+				The current value of the array will be the current batch.
+	Errors:		None
+	
+	Parameters:
+	$self			Batch			->	The batch to calculate from
+	$outStarts		Array Longint	<-	Receives starting indexes
+***************************************************************************************************/
+
+method "getStarts"($self; &$outStarts)
+
+	array longint($outStarts; 0)
+	
+	if ($self{"row_count"} = 0)
+		return
+	end if
+	
+	$effectiveSize := $self{"size"} - $self{"overlap"}
+	$numBatches := $self{"row_count"} \ $effectiveSize
+	
+	if (($self{"row_count"} % $effectiveSize) >= $self{"orphan"})
+		++$numBatches
+	end if
+	
+	$end := $numBatches * $effectiveSize
+	fill array($outStarts; 1; $end; $effectiveSize)
+	$outStarts := (($self{"start"} - 1) \ $effectiveSize) + 1
+
+end method
+
+
+
+/***************************************************************************************************
+	makeFuseboxLinks
+	
+	Purpose:	Build HTML to display links for batching through the rows.
+	Require:	A valid Batch would be nice.  
+	Promise:	$ioPrevious will contain an empty string or the contents of $ioPrevious on entry
+				within a link formed from $inLinkRef and $inStartParam. $ioBatches will contain
+				the batch numbers separated by the text of $ioBatches, with the non-current batches
+				linked like $ioPrevious. $ioNext will be like $ioPrevious.
+	Errors:		None
+	
+	Parameters:
+	$self			Batch		->	The batch to calculate from.
+	$ioPrevious		Text		<->	On entry, the HTML text to display for the previous batch link,
+									or empty to display none. If it contains "|", the text following
+									it is the class to use for the link.
+	$ioBatches		Text		<->	On entry, the HTML text to insert between batch numbers.
+									If it contains "|", the text following it is the class to use
+									for the batch links.
+	$ioNext			Text		<->	On entry, the HTML text to display for the next batch link,
+									or empty to display none. 
+	$inAttributes	Collection	->	The fusebox attributes collection.
+	$inXFA			Text		->	The XFA to link to, leave empty to use current target.
+	$inPassedAttrs	Text		->	Semicolon-delimited list of attributes to pass in the links.
+	$inCurBatchTag	Text		->	Tag to enclose current batch in. If it contains "|", the text
+									following it is the class to use for the tag.
+	$inStartParam	Text		->	The query parameter name which will contain the starting index
+									of the batch in the links.
+	$inMaxBatches	Number		->	Maximum number of batches to display, or <= 0 for unlimited. 
+	RESULT			Boolean		<-	True if links are needed, false if not.
+***************************************************************************************************/
+
+method "makeFuseboxLinks"($self; &$ioPrevious; &$ioBatches; &$ioNext; $inAttributes; $inXFA = ""; $inPassedAttrs = ""; $inCurBatchTag = ""; $inStartParam = ""; $inMaxBatches = -1)
+	
+	$inXFA := $inXFA | $inAttributes{fusebox.conf.fuseaction}	
+	c_text($batchQuery)
+	
+	if ($inPassedAttrs # "")
+		$batchQuery := a4d.web.collectionItemsToQuery($inAttributes; $inPassedAttrs)
+	end if
+	
+	return (Batch.makeLinks($self; $ioPrevious; $ioBatches; $ioNext; fusebox.makeURL($inXFA; $batchQuery); $inCurBatchTag; $inStartParam; $inMaxBatches))
+	
+end method
+
+
+
+/***************************************************************************************************
+	makeLinks
+	
+	Purpose:	Build HTML to display links for paging through the batch.
+	Require:	A valid batch would be nice.  
+	Promise:	$ioPrevious will contain an empty string or the contents of $ioPrevious on entry
+				within a link formed from $inLinkRef and $inStartParam. $ioBatches will contain
+				the batch numbers separated by the text of $ioBatches, with the non-current batches
+				linked like $ioPrevious. $ioNext will be like $ioPrevious.
+	Errors:		None
+	
+	Parameters:
+	$self			Batch	->	The batch to calculate from.
+	$ioPrevious		Text	<->	On entry, the HTML text to display for the first/previous batch link,
+								or empty to display none. If it contains "^", the text
+								before is the HTML for the "first" link, and the text after
+								is the HTML for the "previous" link. If either of those contains "|", 
+								the text following it is the class to use for the link.
+	$ioBatches		Text	<->	On entry, the HTML text to insert between batch numbers.
+								If it contains "|", the text following it is the class to use
+								for the batch links.
+	$ioNext			Text	<->	On entry, the HTML text to display for the next/last batch link,
+								or empty to display none. If it contains "^", the text
+								before is the HTML for the "next" link, and the text after
+								is the HTML for the "last" link. If either of those contains "|", 
+								the text following it is the class to use for the link.
+	$inLinkRef		Text	->	The base URL to link to.
+	$inCurBatchTag	Text	->	Tag to enclose current batch in. If it contains "|", the text
+								following it is the class to use for the tag.
+	$inStartParam	Text	->	The query parameter name which will contain the starting index
+								of the batch in the links.
+	$inMaxBatches	Number	->	Maximum number of batches to display, or <= 0 for unlimited. 
+	RESULT			Boolean	<-	True if links are needed, false if not.
+***************************************************************************************************/
+
+method "makeLinks"($self; &$ioPrevious; &$ioBatches; &$ioNext; $inLinkRef; $inCurBatchTag = ""; $inStartParam = ""; $inMaxBatches = -1)
+	
+	// First determine if we need any batches at all. If the number of rows is less
+	// than the batch size + the minimum needed for a second batch, no batches are needed.
+	
+	if ($self{"row_count"} < ($self{"size"} + self{"_minSize"}))
+		return (false)
+	else
+		c_longint($numBatches; $firstBatch; $lastBatch)
+		
+		// Calculate how many batches there are. We will assume the starting index
+		// falls correctly on a boundary of a batch.
+		
+		$effectiveSize := $self{"size"} - $self{"overlap"}
+		$numBatches := $self{"row_count"} \ $effectiveSize
+		
+		if (($self{"row_count"} % $effectiveSize) >= $self{"orphan"})
+			++$numBatches
+		end if
+		
+		$curBatch := (($self{"start"} - 1) \ $effectiveSize) + 1
+		
+		// Get defaults if necessary
+		if (length($inStartParam) = 0)
+			$inStartParam := self{"_startParam"}
+		end if
+		
+		if (length($ioPrevious) = 0)
+			$ioPrevious := self{"_previous"}
+		end if
+		
+		if (length($ioBatches) = 0)
+			$ioBatches := self{"_separator"}
+		end if
+		
+		if (length($inCurBatchTag) = 0)
+			$inCurBatchTag := self{"_curBatchTag"}
+		end if
+		
+		if (length($ioNext) = 0)
+			$ioNext := self{"_next"}
+		end if
+		
+		if ($inMaxBatches < 0)
+			$inMaxBatches := self{"_maxBatches"}
+		end if
+		
+		/*
+			There are two possibilities to deal with:
+			
+			1. $numBatches <= $inMaxBatches
+			2. $numBatches >  $inMaxBatches
+			
+			In case 1, the first and last batches are always 1 and $numBatches.
+			In case 2, things are a bit more complex.
+		*/
+		
+		if ($inMaxBatches <= 0) | ($numBatches <= $inMaxBatches)
+			$firstBatch := 1
+			$lastBatch  := $numBatches
+		else
+			// Calculate the first and last batch, putting the current batch
+			// in the middle. We will ignore overruns past the beginning or end for now.
+			$firstBatch := $curBatch - ($inMaxBatches \ 2)
+			$lastBatch  := $firstBatch + $inMaxBatches - 1
+	
+			// Now normalize the first and last by checking for overruns.
+			// If $firstBatch <= 0, shift the whole range up. If $lastBatch > $numBatches,
+			// shift the whole range down.
+			c_longint($diff)
+			
+			case of
+				:($firstBatch <= 0)
+					$diff := -$firstBatch + 1
+					$firstBatch += $diff  // forces to 1
+					$lastBatch += $diff
+			
+				:($lastBatch > $numBatches)
+					$diff := $lastBatch - $numBatches
+					$firstBatch -= $diff
+					$lastBatch -= $diff
+			end case
+		end if
+		
+		// Generate the first/previous link
+		$queryDelim := choose(position("?"; $inLinkRef) > 0; ";"; "?")
+		
+		if (length($ioPrevious) # 0)
+			if ($curBatch # 1)
+				$class := ""
+				$first := slice string($ioPrevious; "^"; $ioPrevious)
+				
+				if ($ioPrevious = "")
+					$ioPrevious := $first
+					$first := ""
+				else
+					$first := slice string($first; "|"; $class)
+					
+					if ($class # "")
+						$class := 'class="$class"'
+					end if
+
+					$first := "<a href=\"{0}{1}{2}=1\" {3}>{4}</a>" %% ($inLinkRef; $queryDelim; $inStartParam; $class; $first)
+				end if
+				
+				$ioPrevious := slice string($ioPrevious; "|"; $class)
+				
+				if ($class # "")
+					$class := 'class="$class"'
+				end if
+				
+				$ioPrevious := "{0}<a href=\"{1}{2}{3}={4,number,##########}\" {5}>{6}</a>" %% ($first; $inLinkRef; $queryDelim; $inStartParam; $self{"start"} - $effectiveSize; $class; $ioPrevious)
+			else
+				$ioPrevious := ""
+			end if
+		end if
+		
+		$numClass := ""
+		$padding := slice string($ioBatches; "|"; $numClass)
+		$ioBatches := ""
+		
+		if ($numClass # "")
+			$numClass := 'class="$numClass"'
+		end if
+		
+		$curClass := ""
+		
+		$inCurBatchTag := slice string($inCurBatchTag; "|"; $curClass)
+		
+		if ($curClass # "")
+			$curClass := 'class="$curClass"'
+		end if
+		
+		$start := (($firstBatch - 1) * $effectiveSize) + 1
+		
+		for ($i; $firstBatch; $lastBatch)
+			if ($i = $curBatch)
+				if (length($inCurBatchTag) # 0)
+					$ioBatches += "<{0} {1}>{2}</{0}>{3}" %% ($inCurBatchTag; $curClass; $i; $padding)
+				else
+					$ioBatches += string($i) + $padding
+				end if
+			else
+				$ioBatches += "<a href=\"{0}{1}{2}={3,number,##########}\" {4}>{5,number,#########}</a>{6}" %% ($inLinkRef; $queryDelim; $inStartParam; $start; $numClass; $i; $padding)
+			end if
+			
+			$start += $effectiveSize
+		end for
+		
+		// Trim the trailing padding
+		$ioBatches := substring($ioBatches; 1; length($ioBatches) - length($padding))
+		
+		if (length($ioNext) # 0)
+			if ($curBatch < $lastBatch)
+				$ioNext := slice string($ioNext; "^"; $last)
+				$ioNext := slice string($ioNext; "|"; $class)
+				
+				if ($class # "")
+					$class := 'class="$class"'
+				end if
+				
+				$ioNext := "<a href=\"{0}{1}{2}={3,number,##########}\" {4}>{5}</a>" %% ($inLinkRef; $queryDelim; $inStartParam; $self{"start"} + $effectiveSize; $class; $ioNext)
+				
+				if ($last # "")
+					$last := slice string($last; "|"; $class)
+					
+					if ($class # "")
+						$class := 'class=$class'
+					end if
+					
+					$ioNext += "<a href=\"{0}{1}{2}={3,number,##########}\" {4}>{5}</a>" %% ($inLinkRef; $queryDelim; $inStartParam; (($numBatches - 1) * $effectiveSize) + 1; $class; $last)
+				end if
+			else
+				$ioNext := ""
+			end if
+		end if
+		
+		return (true)
+	end if
+	
+end method
+
+
+
+
+/*
+	PRIVATE METHODS
+*/
+
+/***************************************************************************************************
+	__load__
+	
+	Purpose:	Library initializer
+	Require:	Nothing 
+	Promise:	Something
+	Errors:		None
+***************************************************************************************************/
+
+method "__load__"
+
+	// Set some reasonable defaults
+	setDefaults(10; 2; 0; 7; "&laquo; Previous|batch-prev"; "&nbsp;"; "Next &raquo;|batch-next"; "strong"; kStartParam)
+	
+end method
+
+
+
+/***************************************************************************************************
+	_init
+	
+	Purpose:	Normalize and store initial arguments
+	Require:	Nothing 
+	Promise:	Something
+	Errors:		None
+	
+	Parameters:
+	$inRowCount	Number				->	Total number of rows being batched
+	$inSize		Number/Collection	->	Size of the batch / collection that contains start param
+	$inStart	Number				->	The starting index into the RowSet for the batch
+	$inEnd		Number				->	The ending index into the RowSet for the batch
+	$inOrphan	Number				->	Minimum batch size
+	$inOverlap	Number				->	How many rows to overlap in each batch
+	RESULT		Batch				<-	Batch in which to store the arguments
+***************************************************************************************************/
+
+method "_init"($inRowCount; $inSize; $inStart; $inEnd; $inOrphan; $inOverlap)
+	
+	// If $inSize is a collection, we are using the shortcut syntax which takes the start
+	// from the given collection and uses defaults for everything else.
+	
+	if (is a collection($inSize)) | (is an iterator($inSize))
+		$inStart   := num($inSize{self{"_startParam"}})
+		$inSize    := self{"_size"}
+		$inEnd     := 0
+		$inOrphan  := self{"_minSize"}
+		$inOverlap := self{"_overlap"}
+	else
+		if ($inOrphan < 0)
+			$inOrphan := self{"_minSize"}
+		end if
+		
+		if ($inOverlap < 0)
+			$inOverlap := self{"_overlap"}
+		end if
+	end if
+	
+	$self := new collection("__class__"; current library name; 	\\
+							"row_count"; $inRowCount; 			\\
+							"size"; $inSize;					\\
+							"start"; $inStart; 					\\
+							"end"; $inEnd;						\\
+							"orphan"; $inOrphan;				\\
+							"overlap"; $inOverlap)
+		
+	_normalize($self{"row_count"}; $self{"size"}; $self{"start"}; $self{"end"}; $self{"orphan"}; $self{"overlap"})
+	
+	// Force the start/end to fall on a batch boundary
+	$effectiveSize := $self{"size"} - $self{"overlap"}
+	$batchNum := (($self{"start"} - 1) \ $effectiveSize)
+	$start := ($batchNum * $effectiveSize) + 1
+	$self{"end"} += $start - $self{"start"}
+	$self{"start"} := $start
+	
+	return ($self)
+	
+end method
+
+
+
+/***************************************************************************************************
+	_normalize
+	
+	Purpose:	Normalize arguments
+	Require:	Nothing 
+	Promise:	Normalized arguments
+	Errors:		None
+	
+	Parameters:
+	$inRowCount	Number	->	Total number of rows being batched
+	$ioSize		Number	<->	Desired size of the batch
+	$inStart	Number	<->	The starting index into the RowSet for the batch
+	$inEnd		Number	<->	The ending index into the RowSet for the batch
+	$inOrphan	Number	->	Minimum batch size
+	$inOverlap	Number	->	How many rows to overlap in each batch
+***************************************************************************************************/
+
+method "_normalize"($inRowCount; &$ioSize; &$ioStart; &$ioEnd; $inOrphan; $inOverlap)
+	
+	if ($ioSize < 1)
+		if (($ioStart > 0) & ($ioEnd > 0) & ($ioEnd >= $ioStart))
+			$ioSize := $ioEnd + 1 - $ioStart
+		else
+			$ioSize := self{"_size"}
+		end if
+	end if
+	
+	case of
+		:($ioStart > 0)
+			$ioStart := min of($ioStart; $inRowCount)
+			
+			if ($ioEnd > 0)
+				$ioEnd := max of($ioEnd; $ioStart)
+			else
+				$ioEnd := $ioStart + $ioSize - 1
+			end if
+			
+		:($ioEnd > 0)
+			$ioEnd := min of($ioEnd; $inRowCount)
+			$ioStart := max of($ioEnd + 1 - $ioSize; 1)
+			
+	else
+		$ioStart := 1
+		$ioEnd := $ioStart + $ioSize - 1
+	end case
+	
+	if (($ioEnd + $inOrphan) > $inRowCount)
+		$ioEnd := $inRowCount
+	end if
+	
+end method
+
+
+end library

@@ -1,0 +1,55 @@
+<% /*
+<fusedoc fuse="dsp_hello.a4d" language="Active4D" specification="2.0">
+	<responsibilities>
+		I greet the user when he/she first visits the site.
+	</responsibilities>
+</fusedoc>
+*/ 
+
+fusebox.head.setTitle(fusebox.head.getTitle + " - Welcome")
+
+%>
+<h1>Relations</h1>
+<%include("dlist.a4d")%>
+
+<div id="content-right" class="col-25 dpara"  >
+
+<h1>4D Relations</h1>
+
+<p>4D really only defines two relationships: "relate many" and "relate one". While this is all that is really needed, we can do a
+little better job. Restful Active4D uses something similar to RoR to define relations.</p>
+
+<ul class="indent">
+	<li><b>has_many</b> - normal 4D type relation where each child has key to parent ID</li>
+	<li><b>belong_to</b>  - the reverse of has_many</li>
+	<li><b>has_one</b> - really the same as has_many, but there should only be one child record</li>
+	<li><b>has_many_as</b> - a polymorphic relationship where two keys are needed</li>
+	<li><b>has_one_as</b> - a polymorphic relationship where two keys are needed</li>
+	<li><b>has_many_through</b> - a many-to-many relationship using an intersection table</li>
+</ul>
+<p>These relation definitions in rest.models.json allow Rgen to build views for nested or included models. It also defines what
+what the finder method "rest.find_related" will do.</p>
+
+<h1>Polymorphic Relations</h1>
+
+<p>Just a little more explanation on polymorphic relations. You can use these relations where the same type of data applies to 
+more than one table. A few examples:
+</p>
+
+<ul class="indent">
+	<li><b>Addresses</b> - Companies, Employees, Customers, etc. all have addresses. While it takes a little work to manage this relationship, why define address fields in each record.</li>
+	<li><b>Comments</b>  - Comments can be attached to all kinds of records</li>
+	<li><b>Documents</b> - Many documents can be linked to different kinds of records</li>
+</ul>
+
+<p>In the polymorphic table, you define two foreign keys to uniquely define the related record. I have used table number and record
+id, but Restful Active4D use a name describing the relationship and appends a type and key. For instance:</p>
+
+<ul class="indent">
+	<li><b>documentable_type</b> - stores model name (e.g., project) </li>
+	<li><b>documentable_id</b> - stores the id of the related record (e.g., [projects]id) </li>
+</ul>
+
+<p>We now try to tie all this together by describing our web application in <a href="/about/models">"rest.models.json"</a>.</p>
+
+</div>

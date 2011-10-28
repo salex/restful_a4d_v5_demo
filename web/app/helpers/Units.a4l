@@ -1,0 +1,107 @@
+/*
+	Units support library
+*/
+
+
+library "units"
+
+
+
+
+/**************************************************************************
+	__load__
+	
+	Since units are infrequently edited, we might as well cache them.
+**************************************************************************/
+
+method "__load__"
+	
+	reload
+	
+end method
+
+method "__unload__"
+	RowSet.clearPersistent("units")
+end method
+
+/**************************************************************************
+	_loadUnits
+	
+	Pre-build an option menu of units
+**************************************************************************/
+
+method "_loadUnits"
+	
+	 //Use a semaphore to make sure this is atomic
+	//while (semaphore("$units._loadUnits"))	
+	//end while
+	
+	
+	
+
+	// Do the standard query of all units, this creates the  RowSet
+	all records([Units])
+	order by([units];[units]name)
+	$rows := rest.build_RowSet("unit";0;rest.options(':nobatch -> :true; :name -> :units; :timeout -> 600'))
+	$qryUnits := RowSet.persistent("units")
+	
+	// Prepare to iterate through the RowSet from the beginning
+	$qryUnits->beforeFirst
+	$row := $qryUnits->getRow
+	self{"_unitMenu"} := ""
+	
+	while($qryUnits->next)
+		self{"_unitMenu"} += '<option value="$row{"unit.id"}">$row{"unit.name"}</option>\n'
+	end while
+	
+	//clear semaphore("$units._loadUnits")
+		
+end method
+
+
+
+/**************************************************************************
+	reload
+	
+	This should be called when unit data changes
+**************************************************************************/
+
+method "reload"
+	
+	_loadUnits
+	
+end method
+
+
+
+/**************************************************************************
+	makeOptionMenu
+***************************************************************************/
+
+method "makeOptionMenu"($inCurrentID)
+	if (RowSet.persistent("units") = 0 )
+		reload
+	end if
+
+	if (RowSet.persistent("units")->timedOut)
+		reload
+	end if
+	
+	return (replace string(self{"_unitMenu"}; 'value="$inCurrentID"'; 'value="$inCurrentID" selected'))
+	
+end method
+
+
+
+/**************************************************************************
+	dumpData
+**************************************************************************/
+
+method "dumpData"
+
+	a4d.debug.dump collection(self)
+
+end method
+
+
+end library

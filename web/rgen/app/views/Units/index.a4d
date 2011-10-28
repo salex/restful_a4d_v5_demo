@@ -1,0 +1,63 @@
+
+<%
+// Make the base query string for the edit links
+$baseQuery := a4d.web.collectionItemsToQuery($attributes; "ftr;ftr_name;pbst")
+$batch := $Units{"batch"}
+%>
+
+<div class="dtable">
+	<div class="dactions">
+		<strong>Units</strong>
+		
+		<a class="dlink-button" href="<%=rest.new_controller_path("Units") %>"> New Unit</a>
+		
+
+		
+			<form name="form"  class="dfilter" action="<%=rest.controller_path("Units")%>" method="get" >
+		Name: <%=html.text_field_tag("ftr_Name";$attributes{"ftr_Name"};html.opt(":size => 10"))%>
+			
+				 <input name="ftr" type="submit" value="Filter" />
+				<%if($attributes{"ftr"})%>
+					<a class="dlink-button" href="<%=rest.controller_path("Units")%>">Show All</a>
+
+				<%end if%>
+			</form>
+			
+		
+		
+	</div>
+	
+	
+	<table cellspacing="0">
+		<tr class="column-heads">
+			
+			<td>Id</td>
+			<td>Name</td>
+
+			<td>Actions</td>
+		</tr>
+		<%
+		$row := $Units->getRow
+		$alt := true
+		while ($Units->next)
+			$alt := not($alt)
+			$rowClass := choose($alt; "alt"; "")
+			$query := build query string(""; "id"; $row{"Unit.id"})
+			%>
+			<tr class="<%=$rowClass%>">
+				
+				<td><%=$row{"unit.id"}%></td>
+				<td><%=$row{"unit.name"}%></td>
+
+				<td>
+					<a class="dlink-button" href="<%=rest.controller_path("Units";$row{"Unit.id"};$baseQuery)%>">Show</a>
+					<a class="dlink-button" href="<%=rest.edit_controller_path("Units";$row{"Unit.id"};$baseQuery)%>">Edit</a>
+					<%=delete_link("Units";$row{"Unit.id"}) %>
+				</td>
+			</tr>
+		<%end while%>
+	</table>
+	<%=rest.utils.makeBatchDiv($batch;"ftr;ftr_name;";$attributes)%>
+	<div style="clear:both"></div>
+</div> 
+

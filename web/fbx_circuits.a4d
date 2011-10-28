@@ -1,0 +1,30 @@
+<% /*
+<fusedoc fuse="fbx_circuits.a4d" language="Active4D" specification="2.0">
+	<responsibilities>
+		I define the circuits structure used with Fusebox 3.0. Use slashes ("/") to delimit the circuit mapping, i.e.: $fusebox{"circuits"}{"red"} := "root/folder/redCircuit";
+	</responsibilities>	
+	<io>
+		<out>
+			<string name="$fusebox{'circuits'}{*}" />
+		</out>
+	</io>
+</fusedoc>
+*/
+
+$fusebox{"circuits"}{"root"} := "root"
+$fusebox{"circuits"}{"checker"} := "root/checker"
+
+	$fusebox{"circuits"}{"vendors"} := "root/app/controllers"
+	$fusebox{"circuits"}{"ingredients"} := "root/app/controllers"
+	$fusebox{"circuits"}{"units"} := "root/app/controllers"
+	$fusebox{"circuits"}{"addresses"} := "root/app/controllers"
+//special case
+$fusebox{"circuits"}{"adm_vendors"} := "root/app/controllers"
+
+$fusebox{"circuits"}{"rgen"} := "root/rgen/"
+$fusebox{"circuits"}{"about"} := "root/about/"
+
+global($rest)
+
+$rest := rest.get
+%>

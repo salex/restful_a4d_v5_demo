@@ -1,0 +1,44 @@
+<% /*
+<fusedoc fuse="fbx_switch.a4d" language="Active4D" specification="2.0">
+	<responsibilities>
+		I am the switch statement that handles the fuseactions for the checker circuit, 
+		delegating work to various fuses.
+	</responsibilities>
+	<io>
+		<in>
+			<string name="$XFA_root" comments="The path portion of the root URL" />
+		</in>
+	</io>	
+</fusedoc>
+*/
+
+$fuseaction := $fusebox{"fuseaction"}
+
+case of
+	:($fuseaction = "main")
+		$XFA_onUnsupportedBrowser := "checker.unsupportedBrowser"
+		$XFA_onIE5Win := "checker.ie5WinWarning"
+		$XFA_onOperaMac := "checker.operaMacWarning"
+		$XFA_onNoCookies := "checker.noCookies"
+		$noScriptFuse := "../views/dsp_noJS.a4d"
+		include("controllers/act_checkBrowser.a4d")
+		include("controllers/act_detectJS.a4d")
+	
+	:($fuseaction = "noCookies")
+		include("views/dsp_noJS.a4d")
+	
+	:($fuseaction = "unsupportedBrowser")
+		include("views/dsp_unsupportedBrowser.a4d")
+	
+	:($fuseaction = "ie5WinWarning")
+		$XFA_onLogin := "login.main"
+		include("views/dsp_ie5Warning.a4d")
+	
+	:($fuseaction = "operaMacWarning")
+		$XFA_onLogin := "login.main"
+		include("views/dsp_operaMacWarning.a4d")
+else
+  throw('I received a fuseaction called <b>"$fusebox{"fuseaction"}"</b> that circuit <b>"$fusebox{"circuit"}"</b> does not have a handler for.')
+end case
+
+%>
