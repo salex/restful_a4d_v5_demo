@@ -16,8 +16,8 @@ fusebox.head.setTitle(fusebox.head.getTitle + " - Welcome")
     About this version
  </div>
   
-<p>  Restful Active4D was written about 2 years ago and presented to the community. There was not much interest, mainly because 4D programmers are not 
-  really programmers (ok Most) and are stuck in their 4D world.
+<p>  Restful Active4D was written about 2 years ago and presented to the community. There was not much interest, mainly because 4D programmers are stuck 
+  in their 4D world. Fusebox, which has been out for over 10 years and is probably used by less than 50% of the users. 
 </p>  
 <p>  I've used it a few times and have updated some components, mainly the libraries and mainly in the JSON area.  I tried to do some major refactoring on the rgen (generate scaffold) but ran out of steam.  The code works, it is just jumbled up. Rather than continue at the point I gave up. I decided to post what I have
   and if there is interest I'll work a little on the generator.
